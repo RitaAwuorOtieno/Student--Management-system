@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../models/student.dart';
 import '../services/firestore_service.dart';
 import '../services/auth_service.dart';
+import 'course_outline_page.dart';
+import 'fees_page.dart';
 
 class StudentPage extends StatefulWidget {
   const StudentPage({super.key});
@@ -188,6 +190,75 @@ class _StudentPageState extends State<StudentPage> {
     super.dispose();
   }
 
+  Widget _buildDrawer(BuildContext context) {
+    return Drawer(
+      child: ListView(
+        padding: EdgeInsets.zero,
+        children: [
+          const UserAccountsDrawerHeader(
+            decoration: BoxDecoration(
+              color: Color(0xFF1976D2),
+            ),
+            accountName: Text('Student Management'),
+            accountEmail: Text('Admin User'),
+            currentAccountPicture: CircleAvatar(
+              backgroundColor: Colors.white,
+              child: Icon(
+                Icons.school,
+                color: Color(0xFF1976D2),
+                size: 40,
+              ),
+            ),
+          ),
+          ListTile(
+            leading: const Icon(Icons.people),
+            title: const Text('Students'),
+            selected: true,
+            selectedColor: const Color(0xFF1976D2),
+            onTap: () {
+              Navigator.pop(context);
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.menu_book),
+            title: const Text('Course Outline'),
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const CourseOutlinePage(),
+                ),
+              );
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.payment),
+            title: const Text('Fees & Payments'),
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const FeesPage(),
+                ),
+              );
+            },
+          ),
+          const Divider(),
+          ListTile(
+            leading: const Icon(Icons.logout),
+            title: const Text('Logout'),
+            onTap: () async {
+              Navigator.pop(context);
+              await AuthService().logout();
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final filteredStudents = _searchQuery.isEmpty
@@ -212,6 +283,7 @@ class _StudentPageState extends State<StudentPage> {
           )
         ],
       ),
+      drawer: _buildDrawer(context),
       body: Column(
         children: [
           // Search Bar

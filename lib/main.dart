@@ -3,6 +3,8 @@ import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 
 import 'pages/auth_wrapper.dart';
+import 'pages/course_outline_page.dart';
+import 'pages/fees_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -66,6 +68,10 @@ class StudentManagementApp extends StatelessWidget {
           ),
         ),
       ),
+      routes: {
+        '/course-outline': (context) => const CourseOutlinePage(),
+        '/fees': (context) => const FeesPage(),
+      },
       home: AuthWrapper(),
     );
   }
