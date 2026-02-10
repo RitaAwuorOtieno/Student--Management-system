@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/student.dart';
 import '../services/firestore_service.dart';
 import '../services/auth_service.dart';
+import '../services/validation_service.dart';
 import 'course_outline_page.dart';
 import 'fees_page.dart';
 
@@ -19,6 +20,7 @@ class _StudentPageState extends State<StudentPage> {
   final TextEditingController _courseController = TextEditingController();
   final TextEditingController _yearController = TextEditingController();
   final TextEditingController _searchController = TextEditingController();
+  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
 
   String _gender = 'Male';
   String _searchQuery = '';
@@ -65,57 +67,74 @@ class _StudentPageState extends State<StudentPage> {
       builder: (_) => AlertDialog(
         title: Text(student == null ? 'Add New Student' : 'Edit Student'),
         content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: _regNoController,
-                decoration: const InputDecoration(
-                  labelText: 'Registration Number',
-                  prefixIcon: Icon(Icons.badge),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextFormField(
+                  controller: _regNoController,
+                  decoration: const InputDecoration(
+                    labelText: 'Registration Number',
+                    prefixIcon: Icon(Icons.badge),
+                    helperText: 'e.g., CS-2023-001',
+                  ),
+                  validator: (value) => ValidationService.validateRegistrationNumber(value),
+                  textInputAction: TextInputAction.next,
                 ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _nameController,
-                decoration: const InputDecoration(
-                  labelText: 'Full Name',
-                  prefixIcon: Icon(Icons.person),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _nameController,
+                  decoration: const InputDecoration(
+                    labelText: 'Full Name',
+                    prefixIcon: Icon(Icons.person),
+                    helperText: 'Enter student\'s full name',
+                  ),
+                  validator: (value) => ValidationService.validateName(value),
+                  textInputAction: TextInputAction.next,
                 ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _courseController,
-                decoration: const InputDecoration(
-                  labelText: 'Course/Program',
-                  prefixIcon: Icon(Icons.school),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _courseController,
+                  decoration: const InputDecoration(
+                    labelText: 'Course/Program',
+                    prefixIcon: Icon(Icons.school),
+                    helperText: 'e.g., Bachelor of Computer Science',
+                  ),
+                  validator: (value) => ValidationService.validateCourse(value),
+                  textInputAction: TextInputAction.next,
                 ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _yearController,
-                decoration: const InputDecoration(
-                  labelText: 'Year of Study',
-                  prefixIcon: Icon(Icons.calendar_today),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _yearController,
+                  decoration: const InputDecoration(
+                    labelText: 'Year of Study',
+                    prefixIcon: Icon(Icons.calendar_today),
+                    helperText: 'Enter year (1-7)',
+                  ),
+                  validator: (value) => ValidationService.validateYear(value),
+                  keyboardType: TextInputType.number,
+                  textInputAction: TextInputAction.next,
                 ),
-                keyboardType: TextInputType.number,
-              ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                initialValue: _gender,
-                items: const [
-                  DropdownMenuItem(value: 'Male', child: Text('Male')),
-                  DropdownMenuItem(value: 'Female', child: Text('Female')),
-                ],
-                onChanged: (value) {
-                  setState(() => _gender = value!);
-                },
-                decoration: const InputDecoration(
-                  labelText: 'Gender',
-                  prefixIcon: Icon(Icons.person_outline),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  value: _gender,
+                  items: const [
+                    DropdownMenuItem(value: 'Male', child: Text('Male')),
+                    DropdownMenuItem(value: 'Female', child: Text('Female')),
+                    DropdownMenuItem(value: 'Other', child: Text('Other')),
+                  ],
+                  onChanged: (value) {
+                    setState(() => _gender = value!);
+                  },
+                  decoration: const InputDecoration(
+                    labelText: 'Gender',
+                    prefixIcon: Icon(Icons.person_outline),
+                  ),
+                  validator: (value) => ValidationService.validateGender(value),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
         actions: [
@@ -124,53 +143,69 @@ class _StudentPageState extends State<StudentPage> {
             child: const Text('Cancel'),
           ),
           ElevatedButton(
-            onPressed: () async {
-              final regNo = _regNoController.text.trim();
-              final name = _nameController.text.trim();
-              final course = _courseController.text.trim();
-              final year = int.tryParse(_yearController.text.trim());
-
-              if (regNo.isEmpty ||
-                  name.isEmpty ||
-                  course.isEmpty ||
-                  year == null) {
-                if (!mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Please fill all fields'),
-                    backgroundColor: Colors.red,
-                  ),
-                );
-                return;
-              }
-
-              final newStudent = Student(
-                id: student?.id ?? '',
-                regNo: regNo,
-                name: name,
-                course: course,
-                year: year,
-                gender: _gender,
-              );
-
-              try {
-                if (student == null) {
-                  await _service.create(newStudent);
-                } else {
-                  await _service.update(newStudent);
-                }
-                if (!mounted) return;
-                Navigator.pop(context);
-                await _loadStudents();
-              } catch (e) {
-                _showError('Error: $e');
-              }
-            },
+            onPressed: () async => await _saveStudent(context, student),
             child: const Text('Save'),
           ),
         ],
       ),
     );
+  }
+
+  Future<void> _saveStudent(BuildContext context, Student? student) async {
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+
+    final regNo = ValidationService.normalizeText(_regNoController.text);
+    final name = ValidationService.normalizeText(_nameController.text);
+    final course = ValidationService.normalizeText(_courseController.text);
+    final year = int.parse(_yearController.text.trim());
+
+    // Check for duplicate registration number (only if creating new student or if regNo changed)
+    if (student == null || student.regNo != regNo) {
+      final isDuplicate = _students.any((s) => s.regNo.toLowerCase() == regNo.toLowerCase());
+      if (isDuplicate) {
+        if (!mounted) return;
+        _showError('A student with registration number "$regNo" already exists');
+        return;
+      }
+    }
+
+    final newStudent = Student(
+      id: student?.id ?? '',
+      regNo: regNo,
+      name: name,
+      course: course,
+      year: year,
+      gender: _gender,
+    );
+
+    try {
+      if (student == null) {
+        await _service.create(newStudent);
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Student added successfully'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } else {
+        await _service.update(newStudent);
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Student updated successfully'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+      if (!mounted) return;
+      Navigator.pop(context);
+      await _loadStudents();
+    } catch (e) {
+      _showError('Error saving student: $e');
+    }
   }
 
   void _showError(String message) {
@@ -528,7 +563,10 @@ class _StudentPageState extends State<StudentPage> {
                 await _loadStudents();
                 if (!mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Student deleted successfully')),
+                  const SnackBar(
+                    content: Text('Student deleted successfully'),
+                    backgroundColor: Colors.green,
+                  ),
                 );
               } catch (e) {
                 _showError('Error deleting student: $e');
