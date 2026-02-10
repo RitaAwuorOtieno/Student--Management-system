@@ -79,7 +79,8 @@ class _StudentPageState extends State<StudentPage> {
                     prefixIcon: Icon(Icons.badge),
                     helperText: 'e.g., CS-2023-001',
                   ),
-                  validator: (value) => ValidationService.validateRegistrationNumber(value),
+                  validator: (value) =>
+                      ValidationService.validateRegistrationNumber(value),
                   textInputAction: TextInputAction.next,
                 ),
                 const SizedBox(height: 12),
@@ -163,10 +164,12 @@ class _StudentPageState extends State<StudentPage> {
 
     // Check for duplicate registration number (only if creating new student or if regNo changed)
     if (student == null || student.regNo != regNo) {
-      final isDuplicate = _students.any((s) => s.regNo.toLowerCase() == regNo.toLowerCase());
+      final isDuplicate =
+          _students.any((s) => s.regNo.toLowerCase() == regNo.toLowerCase());
       if (isDuplicate) {
         if (!mounted) return;
-        _showError('A student with registration number "$regNo" already exists');
+        _showError(
+            'A student with registration number "$regNo" already exists');
         return;
       }
     }
