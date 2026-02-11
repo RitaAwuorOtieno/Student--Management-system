@@ -232,13 +232,29 @@ class _FeesPageState extends State<FeesPage> {
                           ],
                         ),
                         isThreeLine: true,
-                        trailing: fee.status != 'Paid'
-                            ? ElevatedButton(
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.edit, size: 20),
+                              onPressed: () => _showEditFeeDialog(fee),
+                              tooltip: 'Edit Fee',
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.delete,
+                                  size: 20, color: Colors.red),
+                              onPressed: () =>
+                                  _confirmDeleteFee(fee.id, fee.studentId),
+                              tooltip: 'Delete Fee',
+                            ),
+                            if (fee.status != 'Paid')
+                              ElevatedButton(
                                 onPressed: () =>
                                     _showPaymentDialog(fee, discounts),
                                 child: const Text('Pay'),
-                              )
-                            : null,
+                              ),
+                          ],
+                        ),
                       ),
                     );
                   },
@@ -1082,6 +1098,138 @@ class _FeesPageState extends State<FeesPage> {
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _confirmDeleteFee(String feeId, String studentId) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Delete Fee'),
+        content: Text(
+            'Are you sure you want to delete the fee for student "$studentId"? This action cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              await _firestoreService.deleteFees(feeId);
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Fee deleted successfully!')),
+              );
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showEditFeeDialog(Fees fee) {
+    final studentIdController = TextEditingController(text: fee.studentId);
+    final amountController = TextEditingController(text: fee.amount.toString());
+    String selectedSemester = fee.semester;
+    String academicYear = fee.academicYear;
+
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Edit Fee'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: studentIdController,
+                decoration: const InputDecoration(
+                  labelText: 'Student ID',
+                  prefixIcon: Icon(Icons.person),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: amountController,
+                decoration: const InputDecoration(
+                  labelText: 'Amount (\$)',
+                  prefixIcon: Icon(Icons.attach_money),
+                ),
+                keyboardType: TextInputType.number,
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                value: academicYear,
+                items: const [
+                  DropdownMenuItem(
+                      value: '2023-2024', child: Text('2023-2024')),
+                  DropdownMenuItem(
+                      value: '2024-2025', child: Text('2024-2025')),
+                ],
+                onChanged: (value) => academicYear = value!,
+                decoration: const InputDecoration(
+                  labelText: 'Academic Year',
+                  prefixIcon: Icon(Icons.school),
+                ),
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                value: selectedSemester,
+                items: const [
+                  DropdownMenuItem(value: 'Fall', child: Text('Fall')),
+                  DropdownMenuItem(value: 'Spring', child: Text('Spring')),
+                  DropdownMenuItem(value: 'Summer', child: Text('Summer')),
+                ],
+                onChanged: (value) => selectedSemester = value!,
+                decoration: const InputDecoration(
+                  labelText: 'Semester',
+                  prefixIcon: Icon(Icons.calendar_today),
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final studentId = studentIdController.text.trim();
+              final amount =
+                  double.tryParse(amountController.text.trim()) ?? 0.0;
+
+              if (studentId.isNotEmpty && amount > 0) {
+                final updatedFee = Fees(
+                  id: fee.id,
+                  studentId: studentId,
+                  amount: amount,
+                  status: fee.status,
+                  dueDate: fee.dueDate,
+                  paymentDate: fee.paymentDate,
+                  paymentMethod: fee.paymentMethod,
+                  academicYear: academicYear,
+                  semester: selectedSemester,
+                );
+                await _firestoreService.updateFees(updatedFee);
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Fee updated successfully!')),
+                );
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                      content: Text('Please fill all fields correctly.')),
+                );
+              }
+            },
+            child: const Text('Update'),
           ),
         ],
       ),
