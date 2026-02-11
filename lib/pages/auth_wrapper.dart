@@ -7,7 +7,8 @@ import '../models/user_model.dart';
 import 'login_page.dart';
 import 'student_page.dart';
 import 'fees_page.dart';
-import 'course_outline_page.dart';
+import 'academic_page.dart';
+import 'attendance_page.dart';
 import 'dart:async';
 
 class AuthWrapper extends StatefulWidget {
@@ -126,6 +127,12 @@ class AdminDashboard extends StatelessWidget {
         'page': const StudentPage()
       },
       {
+        'icon': Icons.calendar_month,
+        'title': 'Attendance',
+        'color': Colors.teal,
+        'page': const AttendancePage()
+      },
+      {
         'icon': Icons.payment,
         'title': 'Fees',
         'color': Colors.green,
@@ -146,7 +153,7 @@ class AdminDashboard extends StatelessWidget {
       {
         'icon': Icons.account_balance,
         'title': 'Accountants',
-        'color': Colors.teal,
+        'color': Colors.cyan,
         'page': const PlaceholderPage(title: 'Accountants Management')
       },
       {
@@ -164,7 +171,7 @@ class AdminDashboard extends StatelessWidget {
       {
         'icon': Icons.person,
         'title': 'Profile',
-        'color': Colors.cyan,
+        'color': Colors.amber,
         'page': const PlaceholderPage(title: 'My Profile')
       },
     ];
