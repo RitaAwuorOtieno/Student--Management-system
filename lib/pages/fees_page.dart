@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/fees.dart';
 import '../services/firestore_service.dart';
 import '../services/mpesa_service.dart';
+import '../models/student.dart';
 
 class FeesPage extends StatefulWidget {
   const FeesPage({super.key});
@@ -10,19 +11,218 @@ class FeesPage extends StatefulWidget {
   State<FeesPage> createState() => _FeesPageState();
 }
 
-class _FeesPageState extends State<FeesPage> {
+class _FeesPageState extends State<FeesPage>
+    with SingleTickerProviderStateMixin {
   final FirestoreService _firestoreService = FirestoreService();
+  final MpesaService _mpesaService = MpesaService();
   final TextEditingController _amountController = TextEditingController();
   final TextEditingController _searchController = TextEditingController();
 
+  late TabController _tabController;
   late Stream<List<Fees>> _feesStream;
   late Stream<List<Discount>> _discountsStream;
 
   String _searchQuery = '';
+  String _selectedAcademicYear = '2024';
+  String _selectedTerm = 'Term 1';
+  final List<String> _academicYears = ['2023', '2024', '2025'];
+  final List<String> _terms = ['Term 1', 'Term 2', 'Term 3'];
+
+  // Sample students for demo
+  final List<Student> _students = [
+    Student(
+        id: 's1',
+        admissionNumber: 'ADM001',
+        fullName: 'John Doe',
+        gender: 'Male',
+        classGrade: 'Grade 1',
+        parentName: 'Mr. Doe',
+        parentPhone: '0712345678',
+        relationship: 'Father',
+        phone: '',
+        address: '',
+        city: ''),
+    Student(
+        id: 's2',
+        admissionNumber: 'ADM002',
+        fullName: 'Jane Smith',
+        gender: 'Female',
+        classGrade: 'Grade 1',
+        parentName: 'Mrs. Smith',
+        parentPhone: '0712345679',
+        relationship: 'Mother',
+        phone: '',
+        address: '',
+        city: ''),
+    Student(
+        id: 's3',
+        admissionNumber: 'ADM003',
+        fullName: 'Bob Johnson',
+        gender: 'Male',
+        classGrade: 'Grade 1',
+        parentName: 'Mr. Johnson',
+        parentPhone: '0712345680',
+        relationship: 'Father',
+        phone: '',
+        address: '',
+        city: ''),
+  ];
+
+  // Sample fee structures
+  final List<FeeStructure> _feeStructures = [
+    FeeStructure(
+        id: 'fs1',
+        className: 'Grade 1',
+        term: 'Term 1',
+        academicYear: '2024',
+        tuitionFee: 15000,
+        activityFee: 2000,
+        examFee: 1000,
+        transportFee: 5000,
+        otherFee: 500,
+        totalFee: 23500),
+    FeeStructure(
+        id: 'fs2',
+        className: 'Grade 2',
+        term: 'Term 1',
+        academicYear: '2024',
+        tuitionFee: 16000,
+        activityFee: 2000,
+        examFee: 1000,
+        transportFee: 5000,
+        otherFee: 500,
+        totalFee: 24500),
+    FeeStructure(
+        id: 'fs3',
+        className: 'Grade 3',
+        term: 'Term 1',
+        academicYear: '2024',
+        tuitionFee: 17000,
+        activityFee: 2500,
+        examFee: 1500,
+        transportFee: 5000,
+        otherFee: 500,
+        totalFee: 26500),
+    FeeStructure(
+        id: 'fs4',
+        className: 'Form 1',
+        term: 'Term 1',
+        academicYear: '2024',
+        tuitionFee: 25000,
+        activityFee: 3000,
+        examFee: 2000,
+        transportFee: 5000,
+        otherFee: 1000,
+        totalFee: 36000),
+    FeeStructure(
+        id: 'fs5',
+        className: 'Form 2',
+        term: 'Term 1',
+        academicYear: '2024',
+        tuitionFee: 26000,
+        activityFee: 3000,
+        examFee: 2000,
+        transportFee: 5000,
+        otherFee: 1000,
+        totalFee: 37000),
+    FeeStructure(
+        id: 'fs6',
+        className: 'Form 3',
+        term: 'Term 1',
+        academicYear: '2024',
+        tuitionFee: 27000,
+        activityFee: 3500,
+        examFee: 2500,
+        transportFee: 5000,
+        otherFee: 1000,
+        totalFee: 39000),
+    FeeStructure(
+        id: 'fs7',
+        className: 'Form 4',
+        term: 'Term 1',
+        academicYear: '2024',
+        tuitionFee: 28000,
+        activityFee: 3500,
+        examFee: 3000,
+        transportFee: 5000,
+        otherFee: 1000,
+        totalFee: 40500),
+  ];
+
+  // Sample payments
+  final List<Payment> _payments = [
+    Payment(
+        id: 'p1',
+        studentId: 's1',
+        studentName: 'John Doe',
+        amount: 23500,
+        paymentDate: DateTime(2024, 1, 15),
+        paymentMethod: 'Cash',
+        receiptNumber: 'RCP-001',
+        academicYear: '2024',
+        term: 'Term 1'),
+    Payment(
+        id: 'p2',
+        studentId: 's2',
+        studentName: 'Jane Smith',
+        amount: 12000,
+        paymentDate: DateTime(2024, 1, 20),
+        paymentMethod: 'M-Pesa',
+        receiptNumber: 'RCP-002',
+        academicYear: '2024',
+        term: 'Term 1'),
+    Payment(
+        id: 'p3',
+        studentId: 's3',
+        studentName: 'Bob Johnson',
+        amount: 23500,
+        paymentDate: DateTime(2024, 1, 10),
+        paymentMethod: 'Bank Transfer',
+        receiptNumber: 'RCP-003',
+        academicYear: '2024',
+        term: 'Term 1'),
+  ];
+
+  // Sample discounts
+  final List<Discount> _discounts = [
+    Discount(
+        id: 'd1',
+        name: 'Early Payment',
+        description: '5% discount for payment within first week of term',
+        percentage: 5,
+        isEarlyPayment: true,
+        validFrom: '2024-01-01',
+        validUntil: '2024-01-31'),
+    Discount(
+        id: 'd2',
+        name: 'Sibling Discount',
+        description: '10% discount for second and subsequent siblings',
+        percentage: 10,
+        isEarlyPayment: false,
+        validFrom: '2024-01-01',
+        validUntil: '2024-12-31'),
+    Discount(
+        id: 'd3',
+        name: 'Staff Child',
+        description: '25% discount for staff children',
+        percentage: 25,
+        isEarlyPayment: false,
+        validFrom: '2024-01-01',
+        validUntil: '2024-12-31'),
+    Discount(
+        id: 'd4',
+        name: 'Full Payment',
+        description: '5% discount for full term payment',
+        percentage: 5,
+        isEarlyPayment: false,
+        validFrom: '2024-01-01',
+        validUntil: '2024-01-31'),
+  ];
 
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(length: 4, vsync: this);
     _feesStream = _firestoreService.getFees();
     _discountsStream = _firestoreService.getDiscounts();
     _searchController.addListener(() {
@@ -34,86 +234,194 @@ class _FeesPageState extends State<FeesPage> {
   void dispose() {
     _amountController.dispose();
     _searchController.dispose();
+    _tabController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return DefaultTabController(
-      length: 2,
-      child: Scaffold(
-        appBar: AppBar(
-          title: const Text('Fees & Payments'),
-          bottom: const TabBar(
-            tabs: [
-              Tab(text: 'Fees'),
-              Tab(text: 'Discounts'),
-            ],
-          ),
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Fees & Payments'),
+        backgroundColor: Colors.blue.shade700,
+        bottom: TabBar(
+          controller: _tabController,
+          tabs: const [
+            Tab(text: 'Fee Structure'),
+            Tab(text: 'Student Fees'),
+            Tab(text: 'Payments'),
+            Tab(text: 'Discounts'),
+          ],
         ),
-        body: StreamBuilder<List<Fees>>(
-          stream: _feesStream,
-          builder: (context, feesSnapshot) {
-            if (feesSnapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator());
-            }
-            if (feesSnapshot.hasError) {
-              return Center(child: Text('Error: ${feesSnapshot.error}'));
-            }
-            final fees = feesSnapshot.data ?? [];
-            final filteredFees = fees.where((fee) {
-              final matchesSearch = _searchQuery.isEmpty ||
-                  fee.studentId.toLowerCase().contains(_searchQuery);
-              return matchesSearch;
-            }).toList();
-
-            final totalPending = fees
-                .where((f) => f.status == 'Pending' || f.status == 'Overdue')
-                .fold<double>(0, (sum, f) => sum + f.amount);
-
-            final totalPaid = fees
-                .where((f) => f.status == 'Paid')
-                .fold<double>(0, (sum, f) => sum + f.amount);
-
-            return StreamBuilder<List<Discount>>(
-              stream: _discountsStream,
-              builder: (context, discountsSnapshot) {
-                if (discountsSnapshot.connectionState ==
-                    ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                if (discountsSnapshot.hasError) {
-                  return Center(
-                      child: Text('Error: ${discountsSnapshot.error}'));
-                }
-                final discounts = discountsSnapshot.data ?? [];
-
-                return TabBarView(
-                  children: [
-                    // Fees Tab
-                    _buildFeesTab(
-                        filteredFees, totalPending, totalPaid, discounts),
-                    // Discounts Tab
-                    _buildDiscountsTab(discounts),
-                  ],
-                );
-              },
-            );
-          },
-        ),
-        floatingActionButton: FloatingActionButton.extended(
-          onPressed: () => _showAddFeesDialog(),
-          icon: const Icon(Icons.add),
-          label: const Text('Add Fees'),
-          backgroundColor: const Color(0xFF1976D2),
-          foregroundColor: Colors.white,
-        ),
+      ),
+      body: TabBarView(
+        controller: _tabController,
+        children: [
+          _buildFeeStructureTab(),
+          _buildStudentFeesTab(),
+          _buildPaymentsTab(),
+          _buildDiscountsTab(),
+        ],
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => _showAddFeeStructureDialog(),
+        icon: const Icon(Icons.add),
+        label: const Text('Add Fee Structure'),
+        backgroundColor: Colors.blue.shade700,
       ),
     );
   }
 
-  Widget _buildFeesTab(List<Fees> filteredFees, double totalPending,
-      double totalPaid, List<Discount> discounts) {
+  // ==================== FEE STRUCTURE TAB ====================
+  Widget _buildFeeStructureTab() {
+    return Column(
+      children: [
+        // Filters
+        Container(
+          padding: const EdgeInsets.all(16),
+          color: Colors.grey.shade100,
+          child: Row(
+            children: [
+              Expanded(
+                child: DropdownButtonFormField<String>(
+                  value: _selectedAcademicYear,
+                  items: _academicYears
+                      .map((y) => DropdownMenuItem(value: y, child: Text(y)))
+                      .toList(),
+                  onChanged: (value) =>
+                      setState(() => _selectedAcademicYear = value!),
+                  decoration: const InputDecoration(
+                    labelText: 'Academic Year',
+                    filled: true,
+                    fillColor: Colors.white,
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: DropdownButtonFormField<String>(
+                  value: _selectedTerm,
+                  items: _terms
+                      .map((t) => DropdownMenuItem(value: t, child: Text(t)))
+                      .toList(),
+                  onChanged: (value) => setState(() => _selectedTerm = value!),
+                  decoration: const InputDecoration(
+                    labelText: 'Term',
+                    filled: true,
+                    fillColor: Colors.white,
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        // Fee Structure Cards
+        Expanded(
+          child: ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: _feeStructures.length,
+            itemBuilder: (context, index) {
+              final feeStructure = _feeStructures[index];
+              return Card(
+                margin: const EdgeInsets.only(bottom: 16),
+                elevation: 3,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+                child: ExpansionTile(
+                  title: Text(
+                    '${feeStructure.className} - ${feeStructure.term} ${feeStructure.academicYear}',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  subtitle: Text(
+                    'Total: KES ${feeStructure.totalFee.toStringAsFixed(0)}',
+                    style: TextStyle(
+                        color: Colors.blue.shade700,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold),
+                  ),
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        children: [
+                          _buildFeeDetailRow(
+                              'Tuition Fee', feeStructure.tuitionFee),
+                          _buildFeeDetailRow(
+                              'Activity Fee', feeStructure.activityFee),
+                          _buildFeeDetailRow('Exam Fee', feeStructure.examFee),
+                          _buildFeeDetailRow(
+                              'Transport Fee', feeStructure.transportFee),
+                          _buildFeeDetailRow(
+                              'Other Fee', feeStructure.otherFee),
+                          const Divider(),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text('TOTAL',
+                                  style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16)),
+                              Text(
+                                'KES ${feeStructure.totalFee.toStringAsFixed(0)}',
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                    color: Colors.blue),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: OutlinedButton.icon(
+                                  onPressed: () =>
+                                      _editFeeStructure(feeStructure),
+                                  icon: const Icon(Icons.edit),
+                                  label: const Text('Edit'),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: ElevatedButton.icon(
+                                  onPressed: () =>
+                                      _duplicateFeeStructure(feeStructure),
+                                  icon: const Icon(Icons.copy),
+                                  label: const Text('Duplicate'),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFeeDetailRow(String label, double amount) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label),
+          Text('KES ${amount.toStringAsFixed(0)}'),
+        ],
+      ),
+    );
+  }
+
+  // ==================== STUDENT FEES TAB ====================
+  Widget _buildStudentFeesTab() {
     return Column(
       children: [
         // Summary Cards
@@ -124,8 +432,8 @@ class _FeesPageState extends State<FeesPage> {
               Expanded(
                 child: _buildSummaryCard(
                   icon: Icons.payment,
-                  label: 'Total Paid',
-                  value: '\$${totalPaid.toStringAsFixed(2)}',
+                  label: 'Total Collected',
+                  value: 'KES ${_getTotalCollected().toStringAsFixed(0)}',
                   color: Colors.green,
                 ),
               ),
@@ -134,7 +442,7 @@ class _FeesPageState extends State<FeesPage> {
                 child: _buildSummaryCard(
                   icon: Icons.pending,
                   label: 'Pending',
-                  value: '\$${totalPending.toStringAsFixed(2)}',
+                  value: 'KES ${_getTotalPending().toStringAsFixed(0)}',
                   color: Colors.orange,
                 ),
               ),
@@ -147,7 +455,7 @@ class _FeesPageState extends State<FeesPage> {
           child: TextField(
             controller: _searchController,
             decoration: InputDecoration(
-              hintText: 'Search by student ID...',
+              hintText: 'Search student name or admission number...',
               prefixIcon: const Icon(Icons.search),
               suffixIcon: _searchController.text.isNotEmpty
                   ? IconButton(
@@ -164,155 +472,260 @@ class _FeesPageState extends State<FeesPage> {
             ),
           ),
         ),
-        // Fees List
+        // Student Fees List
         Expanded(
-          child: filteredFees.isEmpty
-              ? Center(
+          child: ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: _students.length,
+            itemBuilder: (context, index) {
+              final student = _students[index];
+              final totalPaid = _payments
+                  .where((p) => p.studentId == student.id)
+                  .fold(0.0, (sum, p) => sum + p.amount);
+              final totalFee =
+                  _feeStructures.isNotEmpty ? _feeStructures[0].totalFee : 0;
+              final balance = totalFee - totalPaid;
+
+              return Card(
+                margin: const EdgeInsets.only(bottom: 12),
+                elevation: 2,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
                   child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(
-                        Icons.receipt_long,
-                        size: 64,
-                        color: Colors.grey.shade400,
+                      Row(
+                        children: [
+                          CircleAvatar(
+                            backgroundColor: Colors.blue.shade100,
+                            child: Text(student.initials),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(student.fullName,
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 16)),
+                                Text(
+                                    '${student.admissionNumber} | ${student.classGrade}'),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
                       const SizedBox(height: 16),
-                      Text(
-                        'No fees records found',
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: Colors.grey.shade600,
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade100,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceAround,
+                          children: [
+                            _buildFeeStatusItem('Total Fee',
+                                'KES ${totalFee.toStringAsFixed(0)}'),
+                            _buildFeeStatusItem(
+                                'Paid', 'KES ${totalPaid.toStringAsFixed(0)}',
+                                color: Colors.green),
+                            _buildFeeStatusItem(
+                                'Balance', 'KES ${balance.toStringAsFixed(0)}',
+                                color: balance > 0 ? Colors.red : Colors.green),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed: () => _showRecordPaymentDialog(student),
+                          icon: const Icon(Icons.add_shopping_cart),
+                          label: const Text('Record Payment'),
+                          style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.green),
                         ),
                       ),
                     ],
                   ),
-                )
-              : ListView.builder(
-                  padding: const EdgeInsets.all(8),
-                  itemCount: filteredFees.length,
-                  itemBuilder: (context, index) {
-                    final fee = filteredFees[index];
-                    return Card(
-                      elevation: 2,
-                      margin: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 4),
-                      child: ListTile(
-                        leading: CircleAvatar(
-                          backgroundColor: _getStatusColor(fee.status),
-                          child: Icon(
-                            _getStatusIcon(fee.status),
-                            color: Colors.white,
-                          ),
-                        ),
-                        title: Text(
-                          'Student: ${fee.studentId}',
-                          style: const TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                        subtitle: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const SizedBox(height: 4),
-                            Text(
-                                'Amount: \$${fee.amount.toStringAsFixed(2)} | Due: ${fee.dueDate}'),
-                            Text(
-                              'Status: ${fee.status}',
-                              style: TextStyle(
-                                color: _getStatusColor(fee.status),
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            if (fee.status == 'Paid')
-                              Text(
-                                'Paid: ${fee.paymentDate} via ${fee.paymentMethod}',
-                                style: TextStyle(
-                                  color: Colors.grey.shade600,
-                                  fontSize: 12,
-                                ),
-                              ),
-                          ],
-                        ),
-                        isThreeLine: true,
-                        trailing: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            IconButton(
-                              icon: const Icon(Icons.edit, size: 20),
-                              onPressed: () => _showEditFeeDialog(fee),
-                              tooltip: 'Edit Fee',
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.delete,
-                                  size: 20, color: Colors.red),
-                              onPressed: () =>
-                                  _confirmDeleteFee(fee.id, fee.studentId),
-                              tooltip: 'Delete Fee',
-                            ),
-                            if (fee.status != 'Paid')
-                              ElevatedButton(
-                                onPressed: () =>
-                                    _showPaymentDialog(fee, discounts),
-                                child: const Text('Pay'),
-                              ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
                 ),
+              );
+            },
+          ),
         ),
       ],
     );
   }
 
-  Widget _buildDiscountsTab(List<Discount> discounts) {
+  Widget _buildFeeStatusItem(String label, String value, {Color? color}) {
+    return Column(
+      children: [
+        Text(label, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.bold,
+            color: color ?? Colors.black,
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ==================== PAYMENTS TAB ====================
+  Widget _buildPaymentsTab() {
+    return Column(
+      children: [
+        // Filters
+        Container(
+          padding: const EdgeInsets.all(16),
+          color: Colors.grey.shade100,
+          child: Row(
+            children: [
+              Expanded(
+                child: DropdownButtonFormField<String>(
+                  value: _selectedAcademicYear,
+                  items: _academicYears
+                      .map((y) => DropdownMenuItem(value: y, child: Text(y)))
+                      .toList(),
+                  onChanged: (value) =>
+                      setState(() => _selectedAcademicYear = value!),
+                  decoration: const InputDecoration(
+                    labelText: 'Academic Year',
+                    filled: true,
+                    fillColor: Colors.white,
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: DropdownButtonFormField<String>(
+                  value: _selectedTerm,
+                  items: _terms
+                      .map((t) => DropdownMenuItem(value: t, child: Text(t)))
+                      .toList(),
+                  onChanged: (value) => setState(() => _selectedTerm = value!),
+                  decoration: const InputDecoration(
+                    labelText: 'Term',
+                    filled: true,
+                    fillColor: Colors.white,
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        // Payments Summary
+        Container(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Expanded(
+                child: _buildSummaryCard(
+                  icon: Icons.receipt,
+                  label: 'Total Payments',
+                  value: '${_payments.length}',
+                  color: Colors.blue,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: _buildSummaryCard(
+                  icon: Icons.attach_money,
+                  label: 'Total Amount',
+                  value: 'KES ${_getTotalCollected().toStringAsFixed(0)}',
+                  color: Colors.green,
+                ),
+              ),
+            ],
+          ),
+        ),
+        // Payments List
+        Expanded(
+          child: ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: _payments.length,
+            itemBuilder: (context, index) {
+              final payment = _payments[index];
+              return Card(
+                elevation: 2,
+                margin: const EdgeInsets.only(bottom: 12),
+                child: ListTile(
+                  leading: CircleAvatar(
+                    backgroundColor: Colors.green.shade100,
+                    child: const Icon(Icons.check, color: Colors.green),
+                  ),
+                  title: Text(payment.studentName,
+                      style: const TextStyle(fontWeight: FontWeight.bold)),
+                  subtitle: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Receipt: ${payment.receiptNumber}'),
+                      Text(
+                          'Date: ${payment.paymentDate.day}/${payment.paymentDate.month}/${payment.paymentDate.year}'),
+                      Text('Method: ${payment.paymentMethod}'),
+                    ],
+                  ),
+                  trailing: Text(
+                    'KES ${payment.amount.toStringAsFixed(0)}',
+                    style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                        color: Colors.green),
+                  ),
+                  onTap: () => _showReceiptDialog(payment),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ==================== DISCOUNTS TAB ====================
+  Widget _buildDiscountsTab() {
     final earlyPaymentDiscounts =
-        discounts.where((d) => d.isEarlyPayment).toList();
-    final otherDiscounts = discounts.where((d) => !d.isEarlyPayment).toList();
+        _discounts.where((d) => d.isEarlyPayment).toList();
+    final otherDiscounts = _discounts.where((d) => !d.isEarlyPayment).toList();
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Early Payment Discount Section
           if (earlyPaymentDiscounts.isNotEmpty) ...[
             Row(
               children: const [
                 Icon(Icons.timer, color: Colors.green),
                 SizedBox(width: 8),
-                Text(
-                  'Early Payment Discounts',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
+                Text('Early Payment Discounts',
+                    style:
+                        TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               ],
             ),
             const SizedBox(height: 12),
-            ...earlyPaymentDiscounts.map((discount) =>
-                _buildDiscountCard(discount, isEarlyPayment: true)),
+            ...earlyPaymentDiscounts
+                .map((discount) => _buildDiscountCard(discount)),
             const SizedBox(height: 24),
           ],
-          // Other Discounts Section
           Row(
             children: const [
-              Icon(Icons.card_giftcard, color: Color(0xFF1976D2)),
+              Icon(Icons.card_giftcard, color: Colors.blue),
               SizedBox(width: 8),
-              Text(
-                'Other Discounts',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
+              Text('Other Discounts',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             ],
           ),
           const SizedBox(height: 12),
-          ...otherDiscounts.map((discount) =>
-              _buildDiscountCard(discount, isEarlyPayment: false)),
+          ...otherDiscounts.map((discount) => _buildDiscountCard(discount)),
           const SizedBox(height: 16),
-          // Add Discount Button
           SizedBox(
             width: double.infinity,
             child: OutlinedButton.icon(
@@ -326,11 +739,11 @@ class _FeesPageState extends State<FeesPage> {
     );
   }
 
-  Widget _buildDiscountCard(Discount discount, {required bool isEarlyPayment}) {
+  Widget _buildDiscountCard(Discount discount) {
     return Card(
       elevation: 2,
       margin: const EdgeInsets.only(bottom: 12),
-      color: isEarlyPayment ? Colors.green.shade50 : null,
+      color: discount.isEarlyPayment ? Colors.green.shade50 : null,
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -339,29 +752,20 @@ class _FeesPageState extends State<FeesPage> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  discount.name,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
+                Text(discount.name,
+                    style: const TextStyle(
+                        fontSize: 16, fontWeight: FontWeight.bold)),
                 Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 4,
-                  ),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                   decoration: BoxDecoration(
-                    color:
-                        isEarlyPayment ? Colors.green : const Color(0xFF1976D2),
+                    color: discount.isEarlyPayment ? Colors.green : Colors.blue,
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
                     '${discount.percentage.toStringAsFixed(0)}% OFF',
                     style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                    ),
+                        color: Colors.white, fontWeight: FontWeight.bold),
                   ),
                 ),
               ],
@@ -371,28 +775,7 @@ class _FeesPageState extends State<FeesPage> {
             const SizedBox(height: 8),
             Text(
               'Valid: ${discount.validFrom} - ${discount.validUntil}',
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.grey.shade600,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                TextButton(
-                  onPressed: () => _showEditDiscountDialog(discount),
-                  child: const Text('Edit'),
-                ),
-                const SizedBox(width: 8),
-                TextButton(
-                  onPressed: () => _confirmDeleteDiscount(discount.id),
-                  child: const Text(
-                    'Delete',
-                    style: TextStyle(color: Colors.red),
-                  ),
-                ),
-              ],
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
             ),
           ],
         ),
@@ -400,12 +783,11 @@ class _FeesPageState extends State<FeesPage> {
     );
   }
 
-  Widget _buildSummaryCard({
-    required IconData icon,
-    required String label,
-    required String value,
-    required Color color,
-  }) {
+  Widget _buildSummaryCard(
+      {required IconData icon,
+      required String label,
+      required String value,
+      required Color color}) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -417,109 +799,95 @@ class _FeesPageState extends State<FeesPage> {
         children: [
           Icon(icon, color: color, size: 28),
           const SizedBox(height: 8),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: color,
-            ),
-          ),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.grey.shade600,
-            ),
-          ),
+          Text(value,
+              style: TextStyle(
+                  fontSize: 18, fontWeight: FontWeight.bold, color: color)),
+          Text(label,
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
         ],
       ),
     );
   }
 
-  Color _getStatusColor(String status) {
-    switch (status) {
-      case 'Paid':
-        return Colors.green;
-      case 'Pending':
-        return Colors.orange;
-      case 'Overdue':
-        return Colors.red;
-      default:
-        return Colors.grey;
-    }
+  double _getTotalCollected() {
+    return _payments.fold(0.0, (sum, p) => sum + p.amount);
   }
 
-  IconData _getStatusIcon(String status) {
-    switch (status) {
-      case 'Paid':
-        return Icons.check_circle;
-      case 'Pending':
-        return Icons.pending;
-      case 'Overdue':
-        return Icons.warning;
-      default:
-        return Icons.help;
-    }
+  double _getTotalPending() {
+    double totalFees = _feeStructures.isNotEmpty
+        ? _feeStructures[0].totalFee * _students.length
+        : 0;
+    return totalFees - _getTotalCollected();
   }
 
-  void _showAddFeesDialog() {
-    final studentIdController = TextEditingController();
-    final amountController = TextEditingController();
-    String selectedSemester = 'Fall';
-    String academicYear = '2023-2024';
+  // ==================== DIALOGS ====================
+  void _showAddFeeStructureDialog() {
+    final nameController = TextEditingController();
+    String selectedClass = 'Grade 1';
+    int tuitionFee = 15000;
+    int activityFee = 2000;
+    int examFee = 1000;
+    int transportFee = 5000;
+    int otherFee = 500;
 
     showDialog(
       context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Add New Fees'),
+      builder: (context) => AlertDialog(
+        title: const Text('Add Fee Structure'),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              TextField(
-                controller: studentIdController,
-                decoration: const InputDecoration(
-                  labelText: 'Student ID',
-                  prefixIcon: Icon(Icons.person),
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: amountController,
-                decoration: const InputDecoration(
-                  labelText: 'Amount (\$)',
-                  prefixIcon: Icon(Icons.attach_money),
-                ),
-                keyboardType: TextInputType.number,
-              ),
-              const SizedBox(height: 12),
               DropdownButtonFormField<String>(
-                initialValue: academicYear,
-                items: const [
-                  DropdownMenuItem(
-                      value: '2023-2024', child: Text('2023-2024')),
-                  DropdownMenuItem(
-                      value: '2024-2025', child: Text('2024-2025')),
-                ],
-                onChanged: (value) => academicYear = value!,
-                decoration: const InputDecoration(
-                  labelText: 'Academic Year',
-                  prefixIcon: Icon(Icons.school),
-                ),
+                value: selectedClass,
+                items: [
+                  'Grade 1',
+                  'Grade 2',
+                  'Grade 3',
+                  'Grade 4',
+                  'Grade 5',
+                  'Grade 6',
+                  'Grade 7',
+                  'Grade 8',
+                  'Form 1',
+                  'Form 2',
+                  'Form 3',
+                  'Form 4'
+                ]
+                    .map((c) => DropdownMenuItem(value: c, child: Text(c)))
+                    .toList(),
+                onChanged: (value) => selectedClass = value!,
+                decoration: const InputDecoration(labelText: 'Class'),
               ),
               const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                initialValue: selectedSemester,
-                items: const [
-                  DropdownMenuItem(value: 'Fall', child: Text('Fall')),
-                  DropdownMenuItem(value: 'Spring', child: Text('Spring')),
-                  DropdownMenuItem(value: 'Summer', child: Text('Summer')),
-                ],
-                onChanged: (value) => selectedSemester = value!,
-                decoration: const InputDecoration(
-                  labelText: 'Semester',
-                  prefixIcon: Icon(Icons.calendar_today),
+              _buildNumberField('Tuition Fee (KES)', tuitionFee,
+                  (value) => tuitionFee = value),
+              _buildNumberField('Activity Fee (KES)', activityFee,
+                  (value) => activityFee = value),
+              _buildNumberField(
+                  'Exam Fee (KES)', examFee, (value) => examFee = value),
+              _buildNumberField('Transport Fee (KES)', transportFee,
+                  (value) => transportFee = value),
+              _buildNumberField(
+                  'Other Fee (KES)', otherFee, (value) => otherFee = value),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text('Total:',
+                        style: TextStyle(fontWeight: FontWeight.bold)),
+                    Text(
+                      'KES ${(tuitionFee + activityFee + examFee + transportFee + otherFee).toStringAsFixed(0)}',
+                      style: const TextStyle(
+                          fontWeight: FontWeight.bold, color: Colors.blue),
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -527,712 +895,321 @@ class _FeesPageState extends State<FeesPage> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel')),
           ElevatedButton(
-            onPressed: () async {
-              final studentId = studentIdController.text.trim();
-              final amount =
-                  double.tryParse(amountController.text.trim()) ?? 0.0;
-
-              if (studentId.isNotEmpty && amount > 0) {
-                final newFee = Fees(
-                  id: '',
-                  studentId: studentId,
-                  amount: amount,
-                  status: 'Pending',
-                  dueDate:
-                      '2024-01-15', // Default due date, can be made configurable
-                  paymentDate: '',
-                  paymentMethod: '',
-                  academicYear: academicYear,
-                  semester: selectedSemester,
-                );
-                await _firestoreService.createFees(newFee);
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Fees added successfully!')),
-                );
-              } else {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                      content: Text('Please fill all fields correctly.')),
-                );
-              }
+            onPressed: () {
+              setState(() {
+                _feeStructures.add(FeeStructure(
+                  id: DateTime.now().millisecondsSinceEpoch.toString(),
+                  className: selectedClass,
+                  term: _selectedTerm,
+                  academicYear: _selectedAcademicYear,
+                  tuitionFee: tuitionFee.toDouble(),
+                  activityFee: activityFee.toDouble(),
+                  examFee: examFee.toDouble(),
+                  transportFee: transportFee.toDouble(),
+                  otherFee: otherFee.toDouble(),
+                  totalFee: (tuitionFee +
+                          activityFee +
+                          examFee +
+                          transportFee +
+                          otherFee)
+                      .toDouble(),
+                ));
+              });
+              Navigator.pop(context);
+              _showSuccess('Fee structure added successfully');
             },
-            child: const Text('Save'),
+            child: const Text('Add'),
           ),
         ],
       ),
     );
   }
 
-  void _showPaymentDialog(Fees fee, List<Discount> discounts) {
-    Discount? selectedDiscount;
-    String selectedPaymentMethod = 'Bank Transfer';
-    final TextEditingController phoneController = TextEditingController();
-    final formKey = GlobalKey<FormState>();
-    bool isProcessing = false;
-    String stkStatus = '';
+  Widget _buildNumberField(String label, int value, Function(int) onChanged) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Text('$label: '),
+          IconButton(
+            icon: const Icon(Icons.remove),
+            onPressed: () =>
+                setState(() => onChanged(value > 0 ? value - 500 : 0)),
+          ),
+          Text(value.toString(),
+              style: const TextStyle(fontWeight: FontWeight.bold)),
+          IconButton(
+            icon: const Icon(Icons.add),
+            onPressed: () => setState(() => onChanged(value + 500)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _editFeeStructure(FeeStructure feeStructure) {
+    // Edit dialog
+  }
+
+  void _duplicateFeeStructure(FeeStructure feeStructure) {
+    setState(() {
+      _feeStructures.add(FeeStructure(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        className: feeStructure.className,
+        term: _selectedTerm,
+        academicYear: _selectedAcademicYear,
+        tuitionFee: feeStructure.tuitionFee,
+        activityFee: feeStructure.activityFee,
+        examFee: feeStructure.examFee,
+        transportFee: feeStructure.transportFee,
+        otherFee: feeStructure.otherFee,
+        totalFee: feeStructure.totalFee,
+      ));
+    });
+    _showSuccess('Fee structure duplicated');
+  }
+
+  void _showRecordPaymentDialog(Student student) {
+    final amountController = TextEditingController();
+    String paymentMethod = 'Cash';
+    final List<String> paymentMethods = [
+      'Cash',
+      'M-Pesa',
+      'Bank Transfer',
+      'Cheque'
+    ];
 
     showDialog(
       context: context,
-      builder: (_) => StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
-          title: const Text('Make Payment'),
-          content: SingleChildScrollView(
-            child: Form(
-              key: formKey,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text('Student: ${fee.studentId}'),
-                  const SizedBox(height: 8),
-                  Text('Amount: \${fee.amount.toStringAsFixed(2)}'),
-                  const SizedBox(height: 16),
-                  DropdownButtonFormField<String>(
-                    initialValue: selectedPaymentMethod,
-                    items: const [
-                      DropdownMenuItem(
-                          value: 'Bank Transfer', child: Text('Bank Transfer')),
-                      DropdownMenuItem(
-                          value: 'Credit Card', child: Text('Credit Card')),
-                      DropdownMenuItem(value: 'Cash', child: Text('Cash')),
-                      DropdownMenuItem(value: 'Check', child: Text('Check')),
-                      DropdownMenuItem(value: 'M-Pesa', child: Text('M-Pesa')),
-                    ],
-                    onChanged: (value) {
-                      setState(() {
-                        selectedPaymentMethod = value!;
-                        stkStatus = '';
-                      });
-                    },
-                    decoration: const InputDecoration(
-                      labelText: 'Payment Method',
-                      prefixIcon: Icon(Icons.payment),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  // Phone number field for M-Pesa
-                  if (selectedPaymentMethod == 'M-Pesa') ...[
-                    TextFormField(
-                      controller: phoneController,
-                      decoration: const InputDecoration(
-                        labelText: 'Phone Number',
-                        hintText: '07XX XXX XXX or 254XX XXX XXX',
-                        prefixIcon: Icon(Icons.phone),
-                      ),
-                      validator: (value) {
-                        if (selectedPaymentMethod == 'M-Pesa') {
-                          if (value == null || value.isEmpty) {
-                            return 'Phone number is required for M-Pesa';
-                          }
-                          final error = MpesaService.validatePhoneNumber(value);
-                          if (error != null) {
-                            return error;
-                          }
-                        }
-                        return null;
-                      },
-                      keyboardType: TextInputType.phone,
-                    ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      'You will receive an STK push on your phone',
-                      style: TextStyle(fontSize: 12, color: Colors.grey),
-                    ),
-                    if (stkStatus.isNotEmpty) ...[
-                      const SizedBox(height: 8),
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: stkStatus.contains('success')
-                              ? Colors.green.shade100
-                              : stkStatus.contains('fail') ||
-                                      stkStatus.contains('error')
-                                  ? Colors.red.shade100
-                                  : Colors.orange.shade100,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(
-                              stkStatus.contains('success')
-                                  ? Icons.check_circle
-                                  : stkStatus.contains('fail') ||
-                                          stkStatus.contains('error')
-                                      ? Icons.error
-                                      : Icons.hourglass_empty,
-                              color: stkStatus.contains('success')
-                                  ? Colors.green
-                                  : stkStatus.contains('fail') ||
-                                          stkStatus.contains('error')
-                                      ? Colors.red
-                                      : Colors.orange,
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                stkStatus,
-                                style: TextStyle(
-                                  color: stkStatus.contains('success')
-                                      ? Colors.green
-                                      : stkStatus.contains('fail') ||
-                                              stkStatus.contains('error')
-                                          ? Colors.red
-                                          : Colors.orange,
-                                  fontSize: 12,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ],
-                  const SizedBox(height: 16),
-                  const Text('Apply discount?'),
-                  ...discounts.map((discount) => RadioListTile<Discount>(
-                        title: Text(
-                            '${discount.name} (${discount.percentage.toStringAsFixed(0)}%)'),
-                        value: discount,
-                        groupValue: selectedDiscount,
-                        onChanged: (value) =>
-                            setState(() => selectedDiscount = value),
-                      )),
-                ],
+      builder: (context) => AlertDialog(
+        title: const Text('Record Payment'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: CircleAvatar(
+                backgroundColor: Colors.blue.shade100,
+                child: Text(student.initials),
               ),
+              title: Text(student.fullName),
+              subtitle: Text('${student.admissionNumber}'),
             ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
+            const SizedBox(height: 16),
+            TextField(
+              controller: amountController,
+              decoration: const InputDecoration(
+                labelText: 'Amount (KES)',
+                prefixIcon: Icon(Icons.attach_money),
+              ),
+              keyboardType: TextInputType.number,
             ),
-            ElevatedButton(
-              onPressed: isProcessing
-                  ? null
-                  : () async {
-                      if (!formKey.currentState!.validate()) {
-                        return;
-                      }
-
-                      setState(() => isProcessing = true);
-
-                      final now = DateTime.now();
-                      final paymentDate =
-                          '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
-
-                      // Calculate final amount with discount
-                      double finalAmount = selectedDiscount != null
-                          ? fee.amount *
-                              (1 - selectedDiscount!.percentage / 100)
-                          : fee.amount;
-
-                      // Handle M-Pesa payment
-                      if (selectedPaymentMethod == 'M-Pesa') {
-                        setState(() => stkStatus = 'Initiating STK push...');
-
-                        final result = await MpesaService.initiateSTKPush(
-                          phone: phoneController.text.trim(),
-                          amount: finalAmount,
-                          accountReference: fee.studentId,
-                          transactionDesc: 'Fees payment for ${fee.studentId}',
-                        );
-
-                        if (result['success']) {
-                          setState(() {
-                            stkStatus =
-                                'STK push sent! Check your phone and enter PIN.\n'
-                                'Request ID: ${result['checkoutRequestId']}';
-                          });
-
-                          // Show success message but don't close dialog yet
-                          // User needs to complete payment on their phone
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text(
-                                  'STK push sent! Complete payment on your phone.'),
-                              duration: Duration(seconds: 5),
-                            ),
-                          );
-
-                          // For demo purposes, we can simulate payment completion
-                          // In production, you would poll for callback status
-                          await Future.delayed(const Duration(seconds: 3));
-
-                          // Simulate successful payment (remove in production)
-                          setState(() =>
-                              stkStatus = 'Payment successful! (Demo mode)');
-
-                          final updatedFee = Fees(
-                            id: fee.id,
-                            studentId: fee.studentId,
-                            amount: finalAmount,
-                            status: 'Paid',
-                            dueDate: fee.dueDate,
-                            paymentDate: paymentDate,
-                            paymentMethod: 'M-Pesa',
-                            academicYear: fee.academicYear,
-                            semester: fee.semester,
-                          );
-                          await _firestoreService.updateFees(updatedFee);
-
-                          if (mounted) {
-                            Navigator.pop(context);
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                  content:
-                                      Text('Payment completed successfully!')),
-                            );
-                          }
-                        } else {
-                          setState(() {
-                            stkStatus = 'Error: ${result['message']}';
-                            isProcessing = false;
-                          });
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content:
-                                  Text('Payment failed: ${result['message']}'),
-                              backgroundColor: Colors.red,
-                            ),
-                          );
-                        }
-                      } else {
-                        // Handle other payment methods
-                        final updatedFee = Fees(
-                          id: fee.id,
-                          studentId: fee.studentId,
-                          amount: finalAmount,
-                          status: 'Paid',
-                          dueDate: fee.dueDate,
-                          paymentDate: paymentDate,
-                          paymentMethod: selectedPaymentMethod,
-                          academicYear: fee.academicYear,
-                          semester: fee.semester,
-                        );
-                        await _firestoreService.updateFees(updatedFee);
-
-                        if (mounted) {
-                          Navigator.pop(context);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                                content:
-                                    Text('Payment processed successfully!')),
-                          );
-                        }
-                      }
-                    },
-              child: isProcessing
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Text('Confirm Payment'),
+            const SizedBox(height: 16),
+            DropdownButtonFormField<String>(
+              value: paymentMethod,
+              items: paymentMethods
+                  .map((m) => DropdownMenuItem(value: m, child: Text(m)))
+                  .toList(),
+              onChanged: (value) => paymentMethod = value!,
+              decoration: const InputDecoration(labelText: 'Payment Method'),
             ),
           ],
         ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () {
+              final amount = double.tryParse(amountController.text) ?? 0;
+              if (amount > 0) {
+                setState(() {
+                  _payments.add(Payment(
+                    id: DateTime.now().millisecondsSinceEpoch.toString(),
+                    studentId: student.id,
+                    studentName: student.fullName,
+                    amount: amount,
+                    paymentDate: DateTime.now(),
+                    paymentMethod: paymentMethod,
+                    receiptNumber:
+                        'RCP-${DateTime.now().millisecondsSinceEpoch.toString().substring(8)}',
+                    academicYear: _selectedAcademicYear,
+                    term: _selectedTerm,
+                  ));
+                });
+                Navigator.pop(context);
+                _showSuccess('Payment recorded successfully');
+              }
+            },
+            child: const Text('Record Payment'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showReceiptDialog(Payment payment) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Payment Receipt'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                border: Border.all(color: Colors.grey),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Column(
+                children: [
+                  const Text('OFFICIAL RECEIPT',
+                      style:
+                          TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                  const SizedBox(height: 16),
+                  _buildReceiptRow('Receipt Number:', payment.receiptNumber),
+                  _buildReceiptRow('Student Name:', payment.studentName),
+                  _buildReceiptRow('Date:',
+                      '${payment.paymentDate.day}/${payment.paymentDate.month}/${payment.paymentDate.year}'),
+                  _buildReceiptRow('Payment Method:', payment.paymentMethod),
+                  _buildReceiptRow('Term:', payment.term),
+                  _buildReceiptRow('Academic Year:', payment.academicYear),
+                  const Divider(),
+                  _buildReceiptRow('Amount Paid:',
+                      'KES ${payment.amount.toStringAsFixed(0)}',
+                      isBold: true),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () {},
+                    icon: const Icon(Icons.print),
+                    label: const Text('Print'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () {},
+                    icon: const Icon(Icons.share),
+                    label: const Text('Share'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Close')),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildReceiptRow(String label, String value, {bool isBold = false}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label,
+              style:
+                  isBold ? const TextStyle(fontWeight: FontWeight.bold) : null),
+          Text(value,
+              style:
+                  isBold ? const TextStyle(fontWeight: FontWeight.bold) : null),
+        ],
       ),
     );
   }
 
   void _showAddDiscountDialog() {
     final nameController = TextEditingController();
-    final percentageController = TextEditingController();
     final descriptionController = TextEditingController();
-    final validFromController = TextEditingController();
-    final validUntilController = TextEditingController();
+    int percentage = 5;
     bool isEarlyPayment = false;
 
     showDialog(
       context: context,
-      builder: (_) => StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
-          title: const Text('Add New Discount'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
+      builder: (context) => AlertDialog(
+        title: const Text('Add Discount'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: nameController,
+              decoration: const InputDecoration(labelText: 'Discount Name'),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: descriptionController,
+              decoration: const InputDecoration(labelText: 'Description'),
+              maxLines: 2,
+            ),
+            const SizedBox(height: 12),
+            Row(
               children: [
-                TextField(
-                  controller: nameController,
-                  decoration: const InputDecoration(
-                    labelText: 'Discount Name',
-                    prefixIcon: Icon(Icons.label),
-                  ),
+                const Text('Percentage: '),
+                IconButton(
+                  icon: const Icon(Icons.remove),
+                  onPressed: () => setState(
+                      () => percentage = percentage > 5 ? percentage - 5 : 5),
                 ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: percentageController,
-                  decoration: const InputDecoration(
-                    labelText: 'Percentage (%)',
-                    prefixIcon: Icon(Icons.percent),
-                  ),
-                  keyboardType: TextInputType.number,
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: descriptionController,
-                  decoration: const InputDecoration(
-                    labelText: 'Description',
-                    prefixIcon: Icon(Icons.description),
-                  ),
-                  maxLines: 2,
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: validFromController,
-                  decoration: const InputDecoration(
-                    labelText: 'Valid From (YYYY-MM-DD)',
-                    prefixIcon: Icon(Icons.calendar_today),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: validUntilController,
-                  decoration: const InputDecoration(
-                    labelText: 'Valid Until (YYYY-MM-DD)',
-                    prefixIcon: Icon(Icons.calendar_today),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                CheckboxListTile(
-                  title: const Text('Early Payment Discount'),
-                  value: isEarlyPayment,
-                  onChanged: (value) =>
-                      setState(() => isEarlyPayment = value ?? false),
+                Text('$percentage%',
+                    style: const TextStyle(fontWeight: FontWeight.bold)),
+                IconButton(
+                  icon: const Icon(Icons.add),
+                  onPressed: () => setState(() => percentage += 5),
                 ),
               ],
             ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                final name = nameController.text.trim();
-                final percentage =
-                    double.tryParse(percentageController.text.trim()) ?? 0.0;
-                final description = descriptionController.text.trim();
-                final validFrom = validFromController.text.trim();
-                final validUntil = validUntilController.text.trim();
-
-                if (name.isNotEmpty &&
-                    percentage > 0 &&
-                    description.isNotEmpty &&
-                    validFrom.isNotEmpty &&
-                    validUntil.isNotEmpty) {
-                  final newDiscount = Discount(
-                    id: '',
-                    name: name,
-                    percentage: percentage,
-                    description: description,
-                    validFrom: validFrom,
-                    validUntil: validUntil,
-                    isEarlyPayment: isEarlyPayment,
-                  );
-                  await _firestoreService.createDiscount(newDiscount);
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                        content: Text('Discount added successfully!')),
-                  );
-                } else {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                        content: Text('Please fill all fields correctly.')),
-                  );
-                }
-              },
-              child: const Text('Save'),
+            const SizedBox(height: 12),
+            CheckboxListTile(
+              title: const Text('Early Payment Discount'),
+              value: isEarlyPayment,
+              onChanged: (value) => setState(() => isEarlyPayment = value!),
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  void _showEditDiscountDialog(Discount discount) {
-    final nameController = TextEditingController(text: discount.name);
-    final percentageController =
-        TextEditingController(text: discount.percentage.toString());
-    final descriptionController =
-        TextEditingController(text: discount.description);
-    final validFromController = TextEditingController(text: discount.validFrom);
-    final validUntilController =
-        TextEditingController(text: discount.validUntil);
-    bool isEarlyPayment = discount.isEarlyPayment;
-
-    showDialog(
-      context: context,
-      builder: (_) => StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
-          title: const Text('Edit Discount'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: nameController,
-                  decoration: const InputDecoration(
-                    labelText: 'Discount Name',
-                    prefixIcon: Icon(Icons.label),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: percentageController,
-                  decoration: const InputDecoration(
-                    labelText: 'Percentage (%)',
-                    prefixIcon: Icon(Icons.percent),
-                  ),
-                  keyboardType: TextInputType.number,
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: descriptionController,
-                  decoration: const InputDecoration(
-                    labelText: 'Description',
-                    prefixIcon: Icon(Icons.description),
-                  ),
-                  maxLines: 2,
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: validFromController,
-                  decoration: const InputDecoration(
-                    labelText: 'Valid From (YYYY-MM-DD)',
-                    prefixIcon: Icon(Icons.calendar_today),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: validUntilController,
-                  decoration: const InputDecoration(
-                    labelText: 'Valid Until (YYYY-MM-DD)',
-                    prefixIcon: Icon(Icons.calendar_today),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                CheckboxListTile(
-                  title: const Text('Early Payment Discount'),
-                  value: isEarlyPayment,
-                  onChanged: (value) =>
-                      setState(() => isEarlyPayment = value ?? false),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
+        actions: [
+          TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                final name = nameController.text.trim();
-                final percentage =
-                    double.tryParse(percentageController.text.trim()) ?? 0.0;
-                final description = descriptionController.text.trim();
-                final validFrom = validFromController.text.trim();
-                final validUntil = validUntilController.text.trim();
-
-                if (name.isNotEmpty &&
-                    percentage > 0 &&
-                    description.isNotEmpty &&
-                    validFrom.isNotEmpty &&
-                    validUntil.isNotEmpty) {
-                  final updatedDiscount = Discount(
-                    id: discount.id,
-                    name: name,
-                    percentage: percentage,
-                    description: description,
-                    validFrom: validFrom,
-                    validUntil: validUntil,
-                    isEarlyPayment: isEarlyPayment,
-                  );
-                  await _firestoreService.updateDiscount(updatedDiscount);
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                        content: Text('Discount updated successfully!')),
-                  );
-                } else {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                        content: Text('Please fill all fields correctly.')),
-                  );
-                }
-              },
-              child: const Text('Update'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _confirmDeleteDiscount(String id) {
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Delete Discount'),
-        content: const Text(
-            'Are you sure you want to delete this discount? This action cannot be undone.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
+              child: const Text('Cancel')),
           ElevatedButton(
-            onPressed: () async {
-              await _firestoreService.deleteDiscount(id);
+            onPressed: () {
+              setState(() {
+                _discounts.add(Discount(
+                  id: DateTime.now().millisecondsSinceEpoch.toString(),
+                  name: nameController.text,
+                  description: descriptionController.text,
+                  percentage: percentage.toDouble(),
+                  isEarlyPayment: isEarlyPayment,
+                  validFrom: '2024-01-01',
+                  validUntil: '2024-12-31',
+                ));
+              });
               Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Discount deleted successfully!')),
-              );
+              _showSuccess('Discount added successfully');
             },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('Delete'),
+            child: const Text('Add'),
           ),
         ],
       ),
     );
   }
 
-  void _confirmDeleteFee(String feeId, String studentId) {
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Delete Fee'),
-        content: Text(
-            'Are you sure you want to delete the fee for student "$studentId"? This action cannot be undone.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              await _firestoreService.deleteFees(feeId);
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Fee deleted successfully!')),
-              );
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showEditFeeDialog(Fees fee) {
-    final studentIdController = TextEditingController(text: fee.studentId);
-    final amountController = TextEditingController(text: fee.amount.toString());
-    String selectedSemester = fee.semester;
-    String academicYear = fee.academicYear;
-
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Edit Fee'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: studentIdController,
-                decoration: const InputDecoration(
-                  labelText: 'Student ID',
-                  prefixIcon: Icon(Icons.person),
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: amountController,
-                decoration: const InputDecoration(
-                  labelText: 'Amount (\$)',
-                  prefixIcon: Icon(Icons.attach_money),
-                ),
-                keyboardType: TextInputType.number,
-              ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                value: academicYear,
-                items: const [
-                  DropdownMenuItem(
-                      value: '2023-2024', child: Text('2023-2024')),
-                  DropdownMenuItem(
-                      value: '2024-2025', child: Text('2024-2025')),
-                ],
-                onChanged: (value) => academicYear = value!,
-                decoration: const InputDecoration(
-                  labelText: 'Academic Year',
-                  prefixIcon: Icon(Icons.school),
-                ),
-              ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                value: selectedSemester,
-                items: const [
-                  DropdownMenuItem(value: 'Fall', child: Text('Fall')),
-                  DropdownMenuItem(value: 'Spring', child: Text('Spring')),
-                  DropdownMenuItem(value: 'Summer', child: Text('Summer')),
-                ],
-                onChanged: (value) => selectedSemester = value!,
-                decoration: const InputDecoration(
-                  labelText: 'Semester',
-                  prefixIcon: Icon(Icons.calendar_today),
-                ),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              final studentId = studentIdController.text.trim();
-              final amount =
-                  double.tryParse(amountController.text.trim()) ?? 0.0;
-
-              if (studentId.isNotEmpty && amount > 0) {
-                final updatedFee = Fees(
-                  id: fee.id,
-                  studentId: studentId,
-                  amount: amount,
-                  status: fee.status,
-                  dueDate: fee.dueDate,
-                  paymentDate: fee.paymentDate,
-                  paymentMethod: fee.paymentMethod,
-                  academicYear: academicYear,
-                  semester: selectedSemester,
-                );
-                await _firestoreService.updateFees(updatedFee);
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Fee updated successfully!')),
-                );
-              } else {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                      content: Text('Please fill all fields correctly.')),
-                );
-              }
-            },
-            child: const Text('Update'),
-          ),
-        ],
-      ),
+  void _showSuccess(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: Colors.green),
     );
   }
 }

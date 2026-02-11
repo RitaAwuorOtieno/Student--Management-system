@@ -9,6 +9,7 @@ import 'student_page.dart';
 import 'fees_page.dart';
 import 'academic_page.dart';
 import 'attendance_page.dart';
+import 'exams_page.dart';
 import 'dart:async';
 
 class AuthWrapper extends StatefulWidget {
@@ -145,6 +146,12 @@ class AdminDashboard extends StatelessWidget {
         'page': const AcademicPage()
       },
       {
+        'icon': Icons.assignment,
+        'title': 'Exams & Results',
+        'color': Colors.teal,
+        'page': const ExamsPage()
+      },
+      {
         'icon': Icons.people,
         'title': 'Teachers',
         'color': Colors.purple,
@@ -160,7 +167,7 @@ class AdminDashboard extends StatelessWidget {
         'icon': Icons.bar_chart,
         'title': 'Reports',
         'color': Colors.indigo,
-        'page': const PlaceholderPage(title: 'Reports')
+        'page': const ReportsPage()
       },
       {
         'icon': Icons.settings,
