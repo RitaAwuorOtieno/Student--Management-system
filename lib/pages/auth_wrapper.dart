@@ -132,10 +132,10 @@ class AdminDashboard extends StatelessWidget {
         'page': const FeesPage()
       },
       {
-        'icon': Icons.menu_book,
-        'title': 'Courses',
+        'icon': Icons.school,
+        'title': 'Academic',
         'color': Colors.orange,
-        'page': const CourseOutlinePage()
+        'page': const AcademicPage()
       },
       {
         'icon': Icons.people,
