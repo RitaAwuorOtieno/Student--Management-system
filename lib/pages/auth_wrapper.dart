@@ -10,6 +10,7 @@ import 'fees_page.dart';
 import 'academic_page.dart';
 import 'attendance_page.dart';
 import 'exams_page.dart';
+import 'reports_page.dart';
 import 'dart:async';
 
 class AuthWrapper extends StatefulWidget {
