@@ -10,6 +10,7 @@ import 'provider/student_provider.dart';
 import 'provider/theme_provider.dart';
 import 'provider/academic_provider.dart';
 import 'provider/attendance_provider.dart';
+import 'provider/school_stats_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -31,6 +32,7 @@ class StudentManagementApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
         ChangeNotifierProvider(create: (_) => AcademicProvider()),
         ChangeNotifierProvider(create: (_) => AttendanceProvider()),
+        ChangeNotifierProvider(create: (_) => SchoolStatsProvider()),
       ],
       child: MaterialApp(
         title: 'Student Management System',

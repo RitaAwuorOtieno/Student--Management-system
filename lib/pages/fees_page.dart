@@ -18,8 +18,6 @@ class _FeesPageState extends State<FeesPage>
   final TextEditingController _searchController = TextEditingController();
 
   late TabController _tabController;
-  late Stream<List<Fees>> _feesStream;
-  late Stream<List<Discount>> _discountsStream;
 
   String _searchQuery = '';
   String _selectedAcademicYear = '2024';
@@ -222,8 +220,6 @@ class _FeesPageState extends State<FeesPage>
   void initState() {
     super.initState();
     _tabController = TabController(length: 4, vsync: this);
-    _feesStream = _firestoreService.getFees();
-    _discountsStream = _firestoreService.getDiscounts();
     _searchController.addListener(() {
       setState(() => _searchQuery = _searchController.text.toLowerCase());
     });
@@ -838,7 +834,7 @@ class _FeesPageState extends State<FeesPage>
             mainAxisSize: MainAxisSize.min,
             children: [
               DropdownButtonFormField<String>(
-                value: selectedClass,
+                initialValue: selectedClass,
                 items: [
                   'Grade 1',
                   'Grade 2',
@@ -1088,6 +1084,8 @@ class _FeesPageState extends State<FeesPage>
                             } else {
                               _showSuccess(
                                   result['message'] ?? 'STK push failed');
+                              _showError(result['message'] ??
+                                  'STK push failed. Check server logs.');
                             }
                           } catch (e) {
                             _showSuccess('Error: ${e.toString()}');
@@ -1210,76 +1208,84 @@ class _FeesPageState extends State<FeesPage>
   }
 
   void _showAddDiscountDialog() {
-    final nameController = TextEditingController();
-    final descriptionController = TextEditingController();
+    final TextEditingController nameController =
+        TextEditingController(); // ✅ ADD THIS
+    final TextEditingController descriptionController = TextEditingController();
     int percentage = 5;
     bool isEarlyPayment = false;
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Add Discount'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: nameController,
-              decoration: const InputDecoration(labelText: 'Discount Name'),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: descriptionController,
-              decoration: const InputDecoration(labelText: 'Description'),
-              maxLines: 2,
-            ),
-            const SizedBox(height: 12),
-            Row(
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Add Discount'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                const Text('Percentage: '),
-                IconButton(
-                  icon: const Icon(Icons.remove),
-                  onPressed: () => setState(
-                      () => percentage = percentage > 5 ? percentage - 5 : 5),
+                TextField(
+                  controller: nameController, // ✅ now defined
+                  decoration: const InputDecoration(labelText: 'Discount Name'),
                 ),
-                Text('$percentage%',
-                    style: const TextStyle(fontWeight: FontWeight.bold)),
-                IconButton(
-                  icon: const Icon(Icons.add),
-                  onPressed: () => setState(() => percentage += 5),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: descriptionController,
+                  decoration: const InputDecoration(labelText: 'Description'),
+                  maxLines: 2,
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    const Text('Percentage: '),
+                    IconButton(
+                      icon: const Icon(Icons.remove),
+                      onPressed: () => setDialogState(() =>
+                          percentage = percentage > 5 ? percentage - 5 : 5),
+                    ),
+                    Text('$percentage%',
+                        style: const TextStyle(fontWeight: FontWeight.bold)),
+                    IconButton(
+                      icon: const Icon(Icons.add),
+                      onPressed: () => setDialogState(() => percentage += 5),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                CheckboxListTile(
+                  title: const Text('Early Payment Discount'),
+                  value: isEarlyPayment,
+                  onChanged: (value) =>
+                      setDialogState(() => isEarlyPayment = value!),
                 ),
               ],
             ),
-            const SizedBox(height: 12),
-            CheckboxListTile(
-              title: const Text('Early Payment Discount'),
-              value: isEarlyPayment,
-              onChanged: (value) => setState(() => isEarlyPayment = value!),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                setState(() {
+                  _discounts.add(Discount(
+                    id: DateTime.now().millisecondsSinceEpoch.toString(),
+                    name: nameController.text,
+                    description: descriptionController.text,
+                    percentage: percentage.toDouble(),
+                    isEarlyPayment: isEarlyPayment,
+                    validFrom: '2024-01-01',
+                    validUntil: '2024-12-31',
+                  ));
+                });
+
+                Navigator.pop(dialogContext);
+                _showSuccess('Discount added successfully');
+              },
+              child: const Text('Add'),
             ),
           ],
         ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel')),
-          ElevatedButton(
-            onPressed: () {
-              setState(() {
-                _discounts.add(Discount(
-                  id: DateTime.now().millisecondsSinceEpoch.toString(),
-                  name: nameController.text,
-                  description: descriptionController.text,
-                  percentage: percentage.toDouble(),
-                  isEarlyPayment: isEarlyPayment,
-                  validFrom: '2024-01-01',
-                  validUntil: '2024-12-31',
-                ));
-              });
-              Navigator.pop(context);
-              _showSuccess('Discount added successfully');
-            },
-            child: const Text('Add'),
-          ),
-        ],
       ),
     );
   }
@@ -1287,6 +1293,12 @@ class _FeesPageState extends State<FeesPage>
   void _showSuccess(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message), backgroundColor: Colors.green),
+    );
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: Colors.red),
     );
   }
 }

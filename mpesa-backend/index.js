@@ -3,15 +3,24 @@ require("dotenv").config();
 const express = require("express");
 const axios = require("axios");
 const cors = require("cors");
+const admin = require("firebase-admin");
 
 const app = express();
+
+// You'll need to download this from your Firebase project settings
+// and ensure the path is correct.
+// IMPORTANT: Do not commit this file to your public repository!
+const serviceAccount = require("./serviceAccountKey.json");
+
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount),
+});
+
+const db = admin.firestore();
 
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-
-// In-memory store (replace with Firestore/DB in production)
-let callbackData = {};
 
 // ---------- Helpers ----------
 function mpesaTimestamp() {
@@ -69,7 +78,116 @@ app.get("/", (req, res) => {
   res.send("M-Pesa Backend Running");
 });
 
-// STK Push
+// ---------- Auth Routes (Dummy) ----------
+
+// In a real app, use a proper auth library like passport.js and JWT
+app.post("/auth/login", (req, res) => {
+  const { username, password } = req.body;
+
+  // Dummy authentication logic
+  if (username === 'admin' && password === 'admin123') {
+    return res.json({
+      success: true,
+      message: "Admin login successful",
+      // In a real app, this would be a real JWT
+      token: "fake-admin-token",
+      role: "admin",
+    });
+  }
+
+  if (username === 'student' && password === 'student123') {
+    return res.json({
+      success: true,
+      message: "Student login successful",
+      token: "fake-student-token",
+      role: "student",
+      studentId: "dummy-student-001" // Send studentId for student users
+    });
+  }
+
+  res.status(401).json({ success: false, message: "Invalid credentials" });
+});
+
+
+// ---------- Student CRUD API Routes ----------
+
+// Create Student
+// TODO: Add admin-only middleware
+app.post("/api/students", async (req, res) => { // This should be protected
+  try {
+    const { name, studentId, email, course, feeBalance } = req.body;
+    if (!name || !studentId || !course || feeBalance === undefined) {
+      return res.status(400).json({ message: "Missing required student fields." });
+    }
+    const student = { name, studentId, email, course, feeBalance: Number(feeBalance), dateCreated: new Date() };
+    await db.collection("students").doc(studentId).set(student);
+    res.status(201).json({ message: "Student created successfully", data: student });
+  } catch (error) {
+    console.error("Error creating student:", error);
+    res.status(500).json({ message: "Failed to create student." });
+  }
+});
+
+// Get All Students
+// TODO: Add admin-only middleware
+app.get("/api/students", async (req, res) => { // This should be protected
+  try {
+    const snapshot = await db.collection("students").get();
+    if (snapshot.empty) {
+      return res.status(200).json([]);
+    }
+    const students = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    res.status(200).json(students);
+  } catch (error) {
+    console.error("Error getting students:", error);
+    res.status(500).json({ message: "Failed to get students." });
+  }
+});
+
+// Get Student by ID
+// TODO: Add middleware to allow admin OR the specific student to access
+app.get("/api/students/:id", async (req, res) => {
+  try {
+    const studentId = req.params.id;
+    const doc = await db.collection("students").doc(studentId).get();
+    if (!doc.exists) {
+      return res.status(404).json({ message: "Student not found." });
+    }
+    res.status(200).json({ id: doc.id, ...doc.data() });
+  } catch (error) {
+    console.error("Error getting student:", error);
+    res.status(500).json({ message: "Failed to get student." });
+  }
+});
+
+// Update Student
+// TODO: Add admin-only middleware
+app.put("/api/students/:id", async (req, res) => { // This should be protected
+  try {
+    const studentId = req.params.id;
+    const data = req.body;
+    await db.collection("students").doc(studentId).update(data);
+    res.status(200).json({ message: `Student ${studentId} updated successfully.` });
+  } catch (error) {
+    console.error("Error updating student:", error);
+    res.status(500).json({ message: "Failed to update student." });
+  }
+});
+
+// Delete Student
+// TODO: Add admin-only middleware
+app.delete("/api/students/:id", async (req, res) => { // This should be protected
+  try {
+    const studentId = req.params.id;
+    await db.collection("students").doc(studentId).delete();
+    res.status(200).json({ message: `Student ${studentId} deleted successfully.` });
+  } catch (error) {
+    console.error("Error deleting student:", error);
+    res.status(500).json({ message: "Failed to delete student." });
+  }
+});
+
+// STK Push - Can be initiated by admin or student
 app.post("/mpesa/stkpush", async (req, res) => {
   try {
     let { phone, amount, accountReference, transactionDesc } = req.body;
@@ -82,7 +200,7 @@ app.post("/mpesa/stkpush", async (req, res) => {
     }
 
     if (!amount || amount <= 0) {
-      return res.status(400).json({ message: "Valid amount is required" });
+      return res.status(400).json({ message: "A valid amount is required" });
     }
 
     const token = await getAccessToken();
@@ -127,11 +245,22 @@ console.log("Password(base64):", password);
       }
     );
 
+    const checkoutRequestId = stkResponse.data.CheckoutRequestID;
+
+    // Save transaction details to Firestore for later lookup
+    await db.collection("mpesa_transactions").doc(checkoutRequestId).set({
+      studentId: accountReference,
+      amount: Math.round(amount),
+      phone,
+      timestamp: new Date(),
+      status: "initiated",
+    });
+
     console.log("STK Push initiated:", stkResponse.data);
 
     res.json({
       success: true,
-      message: "STK push sent successfully",
+      message: "STK push sent successfully. Please enter your M-Pesa PIN.",
       data: stkResponse.data,
     });
   } catch (error) {
@@ -184,7 +313,7 @@ app.post("/mpesa/query", async (req, res) => {
 });
 
 // Callback
-app.post("/mpesa/callback", (req, res) => {
+app.post("/mpesa/callback", async (req, res) => {
   console.log("MPESA CALLBACK RECEIVED:");
   console.log(JSON.stringify(req.body, null, 2));
 
@@ -197,7 +326,7 @@ app.post("/mpesa/callback", (req, res) => {
     }
 
     const checkoutRequestId = stkCallback.CheckoutRequestID;
-    callbackData[checkoutRequestId] = stkCallback;
+    const transactionRef = db.collection("mpesa_transactions").doc(checkoutRequestId);
 
     if (stkCallback.ResultCode === 0) {
       const items = stkCallback.CallbackMetadata?.Item || [];
@@ -210,27 +339,42 @@ app.post("/mpesa/callback", (req, res) => {
       console.log("Receipt:", mpesaReceipt);
       console.log("Phone:", phone);
 
-      // TODO: Save payment to Firestore / DB
+      // Update transaction in Firestore
+      const transactionDoc = await transactionRef.get();
+      if (transactionDoc.exists) {
+        const { studentId } = transactionDoc.data();
+        const studentRef = db.collection("students").doc(studentId);
+
+        // Use a transaction to ensure atomicity
+        await db.runTransaction(async (t) => {
+          const studentDoc = await t.get(studentRef);
+          if (!studentDoc.exists) {
+            throw new Error(`Student with ID ${studentId} not found!`);
+          }
+          const currentBalance = studentDoc.data().feeBalance;
+          const newBalance = currentBalance - Number(amount);
+
+          t.update(studentRef, { feeBalance: newBalance });
+          t.update(transactionRef, {
+            status: "completed",
+            callbackData: stkCallback,
+          });
+        });
+        console.log(`Updated fee balance for student ${studentId}.`);
+      }
     } else {
       console.log("❌ Payment failed:", stkCallback.ResultDesc);
+      // Update transaction status to failed
+      await transactionRef.update({
+        status: "failed",
+        callbackData: stkCallback,
+      });
     }
 
     res.json({ ResultCode: 0, ResultDesc: "Accepted" });
   } catch (error) {
     console.error("Callback processing error:", error);
     res.json({ ResultCode: 0, ResultDesc: "Accepted" });
-  }
-});
-
-// Get transaction result (for Flutter polling)
-app.get("/mpesa/transaction/:checkoutRequestId", (req, res) => {
-  const { checkoutRequestId } = req.params;
-  const data = callbackData[checkoutRequestId];
-
-  if (data) {
-    res.json({ success: true, data });
-  } else {
-    res.json({ success: false, message: "Transaction not found" });
   }
 });
 
@@ -244,11 +388,26 @@ app.get("/mpesa/token", async (req, res) => {
   }
 });
 
+// Get transaction result (for Flutter polling)
+app.get("/mpesa/transaction/:checkoutRequestId", async (req, res) => {
+  try {
+    const { checkoutRequestId } = req.params;
+    const doc = await db.collection("mpesa_transactions").doc(checkoutRequestId).get();
+
+    if (doc.exists) {
+      res.json({ success: true, data: doc.data() });
+    } else {
+      res.status(404).json({ success: false, message: "Transaction not found" });
+    }
+  } catch (error) {
+    console.error("Error polling transaction:", error);
+    res.status(500).json({ success: false, message: "Error polling transaction" });
+  }
+});
 
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
   console.log("Server running on port " + PORT);
-  console.log("STK Push endpoint: POST /mpesa/stkpush");
-  console.log("Callback URL:", process.env.CALLBACK_URL || "Not configured");
+  console.log("Callback URL for M-Pesa:", process.env.CALLBACK_URL || "Not configured in .env");
 });
