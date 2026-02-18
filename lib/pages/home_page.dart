@@ -336,6 +336,12 @@ class _HomePageState extends State<HomePage> {
       case UserRole.admin:
         return [
           {
+            'icon': Icons.dashboard,
+            'title': 'Dashboard',
+            'color': Colors.red,
+            'page': const AdminDashboard()
+          },
+          {
             'icon': Icons.people,
             'title': 'Students',
             'color': Colors.blue,

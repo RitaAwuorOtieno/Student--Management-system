@@ -187,37 +187,40 @@ class _ExamsPageState extends State<ExamsPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Exams & Results'),
-        backgroundColor: Colors.blue.shade700,
-        bottom: TabBar(
-          onTap: (index) => setState(() => _selectedTab = index),
-          tabs: const [
-            Tab(text: 'Exams'),
-            Tab(text: 'Enter Marks'),
-            Tab(text: 'Results'),
-            Tab(text: 'Report Cards'),
+    return DefaultTabController(
+      length: 4,
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Exams & Results'),
+          backgroundColor: Colors.blue.shade700,
+          bottom: TabBar(
+            onTap: (index) => setState(() => _selectedTab = index),
+            tabs: const [
+              Tab(text: 'Exams'),
+              Tab(text: 'Enter Marks'),
+              Tab(text: 'Results'),
+              Tab(text: 'Report Cards'),
+            ],
+          ),
+        ),
+        body: IndexedStack(
+          index: _selectedTab,
+          children: [
+            _buildExamsTab(),
+            _buildEnterMarksTab(),
+            _buildResultsTab(),
+            _buildReportCardsTab(),
           ],
         ),
+        floatingActionButton: _selectedTab == 0
+            ? FloatingActionButton.extended(
+                onPressed: () => _showCreateExamDialog(),
+                label: const Text('Create Exam'),
+                icon: const Icon(Icons.add),
+                backgroundColor: Colors.blue.shade700,
+              )
+            : null,
       ),
-      body: IndexedStack(
-        index: _selectedTab,
-        children: [
-          _buildExamsTab(),
-          _buildEnterMarksTab(),
-          _buildResultsTab(),
-          _buildReportCardsTab(),
-        ],
-      ),
-      floatingActionButton: _selectedTab == 0
-          ? FloatingActionButton.extended(
-              onPressed: () => _showCreateExamDialog(),
-              label: const Text('Create Exam'),
-              icon: const Icon(Icons.add),
-              backgroundColor: Colors.blue.shade700,
-            )
-          : null,
     );
   }
 

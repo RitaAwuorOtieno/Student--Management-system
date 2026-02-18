@@ -136,26 +136,29 @@ class _AttendancePageState extends State<AttendancePage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Attendance Management'),
-        backgroundColor: Colors.blue.shade700,
-        bottom: TabBar(
-          onTap: (index) => setState(() => _selectedTab = index),
-          tabs: const [
-            Tab(text: 'Mark Attendance'),
-            Tab(text: 'History'),
-            Tab(text: 'Reports'),
+    return DefaultTabController(
+      length: 3,
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Attendance Management'),
+          backgroundColor: Colors.blue.shade700,
+          bottom: TabBar(
+            onTap: (index) => setState(() => _selectedTab = index),
+            tabs: const [
+              Tab(text: 'Mark Attendance'),
+              Tab(text: 'History'),
+              Tab(text: 'Reports'),
+            ],
+          ),
+        ),
+        body: IndexedStack(
+          index: _selectedTab,
+          children: [
+            _buildMarkAttendanceTab(),
+            _buildHistoryTab(),
+            _buildReportsTab(),
           ],
         ),
-      ),
-      body: IndexedStack(
-        index: _selectedTab,
-        children: [
-          _buildMarkAttendanceTab(),
-          _buildHistoryTab(),
-          _buildReportsTab(),
-        ],
       ),
     );
   }
