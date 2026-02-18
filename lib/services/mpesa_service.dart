@@ -3,17 +3,16 @@ import 'package:http/http.dart' as http;
 
 class MpesaService {
   // Base URL configuration for different environments
-  // DEMO MODE: Using mock M-Pesa server (no real authentication)
+  // Use demo-server.js for testing (no real M-Pesa credentials needed)
+  // Use index.js for real M-Pesa sandbox payments
+
+  // For testing/demo: Use demo-server.js
+  // Run with: node demo-server.js (in mpesa-backend folder)
   static const String baseUrl = 'http://localhost:3000';
 
-  // Note: This is demo mode - payments are simulated successfully
-  // For real payments, change to ngrok tunnel URL or your server IP
-
-  // Alternative URLs:
-  // - Android Emulator (demo): 'http://10.0.2.2:3000'
-  // - ngrok tunnel (real payments): 'https://undazzled-jude-translationally.ngrok-free.dev'
-  // - Physical Device (LAN IP): 'http://192.168.1.100:3000'
-  // static const String baseUrl = 'http://192.168.1.100:3000'; // Replace with your IP
+  // For real M-Pesa sandbox payments, change baseUrl to your ngrok tunnel URL
+  // Then run: node start-with-tunnel.js (in mpesa-backend folder)
+  // Example: static const String baseUrl = 'https://your-ngrok-url.ngrok-free.app';
 
   /// Trigger STK Push to user's phone
   static Future<Map<String, dynamic>> initiateSTKPush({

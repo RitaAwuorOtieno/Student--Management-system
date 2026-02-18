@@ -30,8 +30,10 @@ class UserProvider with ChangeNotifier {
       final user = await AuthService().getUserData(uid);
       _currentUser = user;
 
-      // Update last login
-      if (user != null) {
+      if (user == null) {
+        setError('User document not found. Please contact admin.');
+      } else {
+        // Update last login
         await AuthService().updateLastLogin(uid);
       }
     } catch (e) {

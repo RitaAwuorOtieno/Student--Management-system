@@ -228,6 +228,8 @@ class _LoginPageState extends State<LoginPage> {
                     ),
                   ),
                   keyboardType: TextInputType.emailAddress,
+                  autovalidateMode: AutovalidateMode.onUserInteraction,
+                  restorationId: 'email_field',
                 ),
                 const SizedBox(height: 16),
 
@@ -253,6 +255,8 @@ class _LoginPageState extends State<LoginPage> {
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
+                  autovalidateMode: AutovalidateMode.onUserInteraction,
+                  restorationId: 'password_field',
                 ),
 
                 // Registration fields
@@ -324,6 +328,7 @@ class _LoginPageState extends State<LoginPage> {
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
+                    restorationId: 'confirm_password_field',
                   ),
                 ],
 

@@ -14,7 +14,6 @@ class FeesPage extends StatefulWidget {
 class _FeesPageState extends State<FeesPage>
     with SingleTickerProviderStateMixin {
   final FirestoreService _firestoreService = FirestoreService();
-  final MpesaService _mpesaService = MpesaService();
   final TextEditingController _amountController = TextEditingController();
   final TextEditingController _searchController = TextEditingController();
 
@@ -975,6 +974,7 @@ class _FeesPageState extends State<FeesPage>
   void _showRecordPaymentDialog(Student student) {
     final amountController = TextEditingController();
     String paymentMethod = 'Cash';
+    bool isLoading = false;
     final List<String> paymentMethods = [
       'Cash',
       'M-Pesa',
@@ -984,68 +984,145 @@ class _FeesPageState extends State<FeesPage>
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Record Payment'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: CircleAvatar(
-                backgroundColor: Colors.blue.shade100,
-                child: Text(student.initials),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Record Payment'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: CircleAvatar(
+                  backgroundColor: Colors.blue.shade100,
+                  child: Text(student.initials),
+                ),
+                title: Text(student.fullName),
+                subtitle: Text('${student.admissionNumber}'),
               ),
-              title: Text(student.fullName),
-              subtitle: Text('${student.admissionNumber}'),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: amountController,
-              decoration: const InputDecoration(
-                labelText: 'Amount (KES)',
-                prefixIcon: Icon(Icons.attach_money),
+              const SizedBox(height: 16),
+              TextField(
+                controller: amountController,
+                decoration: const InputDecoration(
+                  labelText: 'Amount (KES)',
+                  prefixIcon: Icon(Icons.attach_money),
+                ),
+                keyboardType: TextInputType.number,
               ),
-              keyboardType: TextInputType.number,
-            ),
-            const SizedBox(height: 16),
-            DropdownButtonFormField<String>(
-              value: paymentMethod,
-              items: paymentMethods
-                  .map((m) => DropdownMenuItem(value: m, child: Text(m)))
-                  .toList(),
-              onChanged: (value) => paymentMethod = value!,
-              decoration: const InputDecoration(labelText: 'Payment Method'),
+              const SizedBox(height: 16),
+              DropdownButtonFormField<String>(
+                value: paymentMethod,
+                items: paymentMethods
+                    .map((m) => DropdownMenuItem(value: m, child: Text(m)))
+                    .toList(),
+                onChanged: paymentMethod == 'M-Pesa' && isLoading
+                    ? null
+                    : (value) => setDialogState(() => paymentMethod = value!),
+                decoration: const InputDecoration(labelText: 'Payment Method'),
+              ),
+              if (paymentMethod == 'M-Pesa') ...[
+                const SizedBox(height: 8),
+                Text(
+                  'M-Pesa STK push will be sent to your phone',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.orange.shade700,
+                  ),
+                ),
+              ],
+              if (isLoading) ...[
+                const SizedBox(height: 16),
+                const CircularProgressIndicator(),
+                Text('Sending STK push...'),
+              ],
+            ],
+          ),
+          actions: [
+            TextButton(
+                onPressed: isLoading ? null : () => Navigator.pop(context),
+                child: const Text('Cancel')),
+            ElevatedButton(
+              onPressed: isLoading
+                  ? null
+                  : () async {
+                      final amount =
+                          double.tryParse(amountController.text) ?? 0;
+                      if (amount > 0) {
+                        // If M-Pesa, initiate STK push first
+                        if (paymentMethod == 'M-Pesa') {
+                          setDialogState(() => isLoading = true);
+
+                          try {
+                            // Get phone number from student or use parent phone
+                            final phone = student.phone.isNotEmpty
+                                ? student.phone
+                                : student.parentPhone;
+
+                            final result = await MpesaService.initiateSTKPush(
+                              phone: phone,
+                              amount: amount,
+                              accountReference: student.admissionNumber,
+                              transactionDesc:
+                                  'School Fees - ${student.fullName}',
+                            );
+
+                            if (result['success'] == true) {
+                              // Record payment after successful STK push
+                              setState(() {
+                                _payments.add(Payment(
+                                  id: DateTime.now()
+                                      .millisecondsSinceEpoch
+                                      .toString(),
+                                  studentId: student.id,
+                                  studentName: student.fullName,
+                                  amount: amount,
+                                  paymentDate: DateTime.now(),
+                                  paymentMethod: paymentMethod,
+                                  receiptNumber: result['checkoutRequestId'] ??
+                                      'RCP-${DateTime.now().millisecondsSinceEpoch.toString().substring(8)}',
+                                  academicYear: _selectedAcademicYear,
+                                  term: _selectedTerm,
+                                ));
+                              });
+                              Navigator.pop(context);
+                              _showSuccess(
+                                  'Payment recorded! STK push sent to $phone');
+                            } else {
+                              _showSuccess(
+                                  result['message'] ?? 'STK push failed');
+                            }
+                          } catch (e) {
+                            _showSuccess('Error: ${e.toString()}');
+                          } finally {
+                            setDialogState(() => isLoading = false);
+                          }
+                        } else {
+                          // For other payment methods, record directly
+                          setState(() {
+                            _payments.add(Payment(
+                              id: DateTime.now()
+                                  .millisecondsSinceEpoch
+                                  .toString(),
+                              studentId: student.id,
+                              studentName: student.fullName,
+                              amount: amount,
+                              paymentDate: DateTime.now(),
+                              paymentMethod: paymentMethod,
+                              receiptNumber:
+                                  'RCP-${DateTime.now().millisecondsSinceEpoch.toString().substring(8)}',
+                              academicYear: _selectedAcademicYear,
+                              term: _selectedTerm,
+                            ));
+                          });
+                          Navigator.pop(context);
+                          _showSuccess('Payment recorded successfully');
+                        }
+                      }
+                    },
+              child: Text(paymentMethod == 'M-Pesa'
+                  ? 'Send STK Push'
+                  : 'Record Payment'),
             ),
           ],
         ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel')),
-          ElevatedButton(
-            onPressed: () {
-              final amount = double.tryParse(amountController.text) ?? 0;
-              if (amount > 0) {
-                setState(() {
-                  _payments.add(Payment(
-                    id: DateTime.now().millisecondsSinceEpoch.toString(),
-                    studentId: student.id,
-                    studentName: student.fullName,
-                    amount: amount,
-                    paymentDate: DateTime.now(),
-                    paymentMethod: paymentMethod,
-                    receiptNumber:
-                        'RCP-${DateTime.now().millisecondsSinceEpoch.toString().substring(8)}',
-                    academicYear: _selectedAcademicYear,
-                    term: _selectedTerm,
-                  ));
-                });
-                Navigator.pop(context);
-                _showSuccess('Payment recorded successfully');
-              }
-            },
-            child: const Text('Record Payment'),
-          ),
-        ],
       ),
     );
   }

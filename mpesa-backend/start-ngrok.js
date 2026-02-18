@@ -1,42 +1,35 @@
-const ngrok = require('ngrok');
-const fs = require('fs');
-const path = require('path');
+require("dotenv").config();
+const ngrok = require("@ngrok/ngrok");
 
-async function startNgrok() {
+(async function () {
   try {
-    console.log('\n🚀 Starting ngrok tunnel...');
-    
-    const url = await ngrok.connect(3000);
+    const port = Number(process.env.PORT || 3000);
+    const authtoken = process.env.NGROK_AUTHTOKEN;
 
-    console.log('\n✅ ngrok tunnel started successfully!');
-    console.log(`\n📡 Public Tunnel URL: ${url}`);
-    console.log(`📡 Callback URL: ${url}/mpesa/callback\n`);
+    if (!authtoken) {
+      throw new Error("NGROK_AUTHTOKEN missing in .env");
+    }
 
-    // Save the URL to a file
-    const callbackUrl = `${url}/mpesa/callback`;
-    fs.writeFileSync(path.join(__dirname, 'NGROK_URL.txt'), `${callbackUrl}\n`);
-    console.log('✅ Tunnel URL saved to NGROK_URL.txt');
+    // Authenticate first (required for @ngrok/ngrok)
+    await ngrok.authtoken(authtoken);
 
-    // Keep the tunnel alive
-    console.log('✅ Tunnel is running. Press Ctrl+C to stop.\n');
+    // Create an HTTP tunnel to your local server
+    const listener = await ngrok.connect({
+      addr: port,
+      proto: "http",
+    });
 
-    // Also log to console periodically
-    setInterval(() => {
-      console.log(`[${new Date().toLocaleTimeString()}] Tunnel active: ${url}`);
-    }, 60000); // Every 60 seconds
+    // Extract the public URL (new SDK returns a Listener object)
+    const publicUrl =
+      typeof listener === "string"
+        ? listener
+        : listener.url?.() || listener.url || listener.public_url;
 
-  } catch (error) {
-    console.error('❌ Error starting ngrok:', error.message);
+    console.log("✅ Ngrok tunnel started at:", publicUrl);
+    console.log("📋 Set this as CALLBACK_URL in .env");
+    console.log("\n💥 Press Ctrl+C to stop the tunnel");
+  } catch (err) {
+    console.error("❌ Error starting ngrok:", err.message);
     process.exit(1);
   }
-}
-
-// Start ngrok
-startNgrok();
-
-// Handle interruption
-process.on('SIGINT', async () => {
-  console.log('\n\n👋 Shutting down ngrok...');
-  await ngrok.disconnect();
-  process.exit(0);
-});
+})();

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:provider/provider.dart';
 import 'firebase_options.dart';
-
 import 'pages/auth_wrapper.dart';
 import 'pages/course_outline_page.dart';
 import 'pages/fees_page.dart';
@@ -37,6 +36,7 @@ class StudentManagementApp extends StatelessWidget {
         title: 'Student Management System',
         debugShowCheckedModeBanner: false,
         theme: ThemeData(
+          fontFamily: null, // Use system default fonts
           primarySwatch: Colors.blue,
           primaryColor: const Color(0xFF1976D2),
           scaffoldBackgroundColor: const Color(0xFFF5F5F5),

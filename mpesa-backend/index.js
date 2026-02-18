@@ -1,7 +1,4 @@
 require("dotenv").config();
-console.log("SHORTCODE:", process.env.SHORTCODE);
-console.log("CONSUMER_KEY:", process.env.CONSUMER_KEY ? "LOADED" : "MISSING");
-console.log("PASSKEY:", process.env.PASSKEY ? "LOADED" : "MISSING");
 
 const express = require("express");
 const axios = require("axios");
@@ -13,7 +10,33 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// In-memory store (replace with Firestore/DB in production)
 let callbackData = {};
+
+// ---------- Helpers ----------
+function mpesaTimestamp() {
+  const d = new Date();
+  const pad = (n) => n.toString().padStart(2, "0");
+  return (
+    d.getFullYear().toString() +
+    pad(d.getMonth() + 1) +
+    pad(d.getDate()) +
+    pad(d.getHours()) +
+    pad(d.getMinutes()) +
+    pad(d.getSeconds())
+  );
+}
+
+function formatPhoneNumber(phone) {
+  phone = phone.replace(/[\s\-\(\)]/g, "");
+
+  if (phone.startsWith("07")) return "254" + phone.substring(1);
+  if (phone.startsWith("01")) return "254" + phone.substring(1);
+  if (phone.startsWith("+254")) return phone.substring(1);
+  if (phone.startsWith("254")) return phone;
+
+  return null;
+}
 
 async function getAccessToken() {
   const consumerKey = process.env.CONSUMER_KEY;
@@ -35,34 +58,23 @@ async function getAccessToken() {
     );
     return response.data.access_token;
   } catch (error) {
-    console.error("Failed to get access token:", error.response?.data || error.message);
+    console.error("Access token error:", error.response?.data || error.message);
     throw new Error("Failed to get M-Pesa access token");
   }
 }
 
-function formatPhoneNumber(phone) {
-  phone = phone.replace(/[\s\-\(\)]/g, "");
-  
-  if (phone.startsWith("07")) {
-    return "254" + phone.substring(1);
-  } else if (phone.startsWith("01")) {
-    return "254" + phone.substring(1);
-  } else if (phone.startsWith("+254")) {
-    return phone.substring(1);
-  } else if (phone.startsWith("254")) {
-    return phone;
-  } else {
-    return null;
-  }
-}
+// ---------- Routes ----------
 
+app.get("/", (req, res) => {
+  res.send("M-Pesa Backend Running");
+});
+
+// STK Push
 app.post("/mpesa/stkpush", async (req, res) => {
   try {
     let { phone, amount, accountReference, transactionDesc } = req.body;
 
-    if (!phone) {
-      return res.status(400).json({ message: "Phone number is required" });
-    }
+    if (!phone) return res.status(400).json({ message: "Phone number is required" });
 
     phone = formatPhoneNumber(phone);
     if (!phone) {
@@ -74,25 +86,22 @@ app.post("/mpesa/stkpush", async (req, res) => {
     }
 
     const token = await getAccessToken();
-
-    const timestamp = new Date()
-      .toISOString()
-      .replace(/[^0-9]/g, "")
-      .slice(0, -3);
+    const timestamp = mpesaTimestamp();
 
     const shortcode = process.env.SHORTCODE || "174379";
     const passkey = process.env.PASSKEY;
-
-    if (!passkey) {
-      throw new Error("Missing PASSKEY in environment variables");
-    }
-
-    const password = Buffer.from(shortcode + passkey + timestamp).toString("base64");
     const callbackUrl = process.env.CALLBACK_URL;
 
-    if (!callbackUrl) {
-      throw new Error("CALLBACK_URL is required in .env file");
-    }
+    if (!passkey) throw new Error("Missing PASSKEY in .env");
+    if (!callbackUrl) throw new Error("Missing CALLBACK_URL in .env");
+
+    const password = Buffer.from(shortcode + passkey.trim() + timestamp).toString("base64");
+
+console.log("Shortcode:", shortcode);
+console.log("Passkey:", `"${passkey}"`, "length:", passkey.length);
+console.log("Timestamp:", timestamp, "length:", timestamp.length);
+console.log("Password(base64):", password);
+
 
     const stkResponse = await axios.post(
       "https://sandbox.safaricom.co.ke/mpesa/stkpush/v1/processrequest",
@@ -106,8 +115,8 @@ app.post("/mpesa/stkpush", async (req, res) => {
         PartyB: shortcode,
         PhoneNumber: phone,
         CallBackURL: callbackUrl,
-        AccountReference: accountReference || "Test",
-        TransactionDesc: transactionDesc || "Test payment",
+        AccountReference: accountReference || "StudentFees",
+        TransactionDesc: transactionDesc || "School Fees Payment",
       },
       {
         headers: {
@@ -127,30 +136,24 @@ app.post("/mpesa/stkpush", async (req, res) => {
     });
   } catch (error) {
     console.error("STK Push error:", error.response?.data || error.message);
-    
-    const errorMessage = error.response?.data?.errorMessage || "Mpesa STK push failed";
-    
-    res.status(500).json({ 
+    res.status(500).json({
       success: false,
-      message: errorMessage,
+      message: error.response?.data?.errorMessage || "Mpesa STK push failed",
     });
   }
 });
 
+// STK Query
 app.post("/mpesa/query", async (req, res) => {
   try {
     const { checkoutRequestId } = req.body;
 
     if (!checkoutRequestId) {
-      return res.status(400).json({ message: "Checkout request ID is required" });
+      return res.status(400).json({ message: "CheckoutRequestID is required" });
     }
 
     const token = await getAccessToken();
-
-    const timestamp = new Date()
-      .toISOString()
-      .replace(/[^0-9]/g, "")
-      .slice(0, -3);
+    const timestamp = mpesaTimestamp();
 
     const shortcode = process.env.SHORTCODE || "174379";
     const passkey = process.env.PASSKEY;
@@ -180,43 +183,50 @@ app.post("/mpesa/query", async (req, res) => {
   }
 });
 
+// Callback
 app.post("/mpesa/callback", (req, res) => {
   console.log("MPESA CALLBACK RECEIVED:");
   console.log(JSON.stringify(req.body, null, 2));
 
   try {
-    const result = req.body;
-    
-    if (result.ResultType !== undefined) {
-      const checkoutRequestId = result.CheckoutRequestID;
-      callbackData[checkoutRequestId] = result;
-      
-      if (result.ResultCode === 0) {
-        console.log("Payment successful!");
-        const stkCallback = result.Result?.CallbackMetadata?.Item || [];
-        const amount = stkCallback.find(i => i.Name === "Amount")?.Value;
-        const mpesaReceipt = stkCallback.find(i => i.Name === "MpesaReceiptNumber")?.Value;
-        const phone = stkCallback.find(i => i.Name === "PhoneNumber")?.Value;
-        
-        console.log("Amount:", amount);
-        console.log("Receipt:", mpesaReceipt);
-        console.log("Phone:", phone);
-      } else {
-        console.log("Payment failed:", result.ResultDesc);
-      }
+    const stkCallback = req.body?.Body?.stkCallback;
+
+    if (!stkCallback) {
+      console.log("Invalid callback format");
+      return res.json({ ResultCode: 0, ResultDesc: "Accepted" });
     }
 
-    res.json({ ResultCode: 0, ResultDesc: "Success" });
+    const checkoutRequestId = stkCallback.CheckoutRequestID;
+    callbackData[checkoutRequestId] = stkCallback;
+
+    if (stkCallback.ResultCode === 0) {
+      const items = stkCallback.CallbackMetadata?.Item || [];
+      const amount = items.find(i => i.Name === "Amount")?.Value;
+      const mpesaReceipt = items.find(i => i.Name === "MpesaReceiptNumber")?.Value;
+      const phone = items.find(i => i.Name === "PhoneNumber")?.Value;
+
+      console.log("✅ Payment successful");
+      console.log("Amount:", amount);
+      console.log("Receipt:", mpesaReceipt);
+      console.log("Phone:", phone);
+
+      // TODO: Save payment to Firestore / DB
+    } else {
+      console.log("❌ Payment failed:", stkCallback.ResultDesc);
+    }
+
+    res.json({ ResultCode: 0, ResultDesc: "Accepted" });
   } catch (error) {
     console.error("Callback processing error:", error);
-    res.json({ ResultCode: 0, ResultDesc: "Success" });
+    res.json({ ResultCode: 0, ResultDesc: "Accepted" });
   }
 });
 
+// Get transaction result (for Flutter polling)
 app.get("/mpesa/transaction/:checkoutRequestId", (req, res) => {
   const { checkoutRequestId } = req.params;
   const data = callbackData[checkoutRequestId];
-  
+
   if (data) {
     res.json({ success: true, data });
   } else {
@@ -224,10 +234,21 @@ app.get("/mpesa/transaction/:checkoutRequestId", (req, res) => {
   }
 });
 
+app.get("/mpesa/token", async (req, res) => {
+  try {
+    const token = await getAccessToken();
+    res.json({ access_token: token });
+  } catch (e) {
+    console.error("Token error:", e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
   console.log("Server running on port " + PORT);
   console.log("STK Push endpoint: POST /mpesa/stkpush");
-  console.log("Callback URL: " + (process.env.CALLBACK_URL || "Not configured"));
+  console.log("Callback URL:", process.env.CALLBACK_URL || "Not configured");
 });
