@@ -101,9 +101,11 @@ class _HomePageState extends State<HomePage> {
     switch (role) {
       case UserRole.teacher:
         return const [
-          NavigationDestination(icon: Icon(Icons.dashboard), label: 'Dashboard'),
+          NavigationDestination(
+              icon: Icon(Icons.dashboard), label: 'Dashboard'),
           NavigationDestination(icon: Icon(Icons.people), label: 'Students'),
-          NavigationDestination(icon: Icon(Icons.check_circle), label: 'Attendance'),
+          NavigationDestination(
+              icon: Icon(Icons.check_circle), label: 'Attendance'),
           NavigationDestination(icon: Icon(Icons.assignment), label: 'Exams'),
         ];
       case UserRole.parent:
@@ -111,26 +113,31 @@ class _HomePageState extends State<HomePage> {
           NavigationDestination(icon: Icon(Icons.dashboard), label: 'Home'),
           NavigationDestination(icon: Icon(Icons.payment), label: 'Fees'),
           NavigationDestination(icon: Icon(Icons.grade), label: 'Academics'),
-          NavigationDestination(icon: Icon(Icons.calendar_today), label: 'Attendance'),
+          NavigationDestination(
+              icon: Icon(Icons.calendar_today), label: 'Attendance'),
         ];
       case UserRole.accountant:
         return const [
-          NavigationDestination(icon: Icon(Icons.dashboard), label: 'Dashboard'),
+          NavigationDestination(
+              icon: Icon(Icons.dashboard), label: 'Dashboard'),
           NavigationDestination(icon: Icon(Icons.attach_money), label: 'Fees'),
           NavigationDestination(icon: Icon(Icons.bar_chart), label: 'Reports'),
-          NavigationDestination(icon: Icon(Icons.account_balance_wallet), label: 'Expenses'),
+          NavigationDestination(
+              icon: Icon(Icons.account_balance_wallet), label: 'Expenses'),
         ];
       case UserRole.student:
         return const [
           NavigationDestination(icon: Icon(Icons.dashboard), label: 'Home'),
           NavigationDestination(icon: Icon(Icons.school), label: 'Academics'),
-          NavigationDestination(icon: Icon(Icons.calendar_today), label: 'Attendance'),
+          NavigationDestination(
+              icon: Icon(Icons.calendar_today), label: 'Attendance'),
           NavigationDestination(icon: Icon(Icons.payment), label: 'Fees'),
         ];
       case UserRole.admin:
       default:
         return const [
-          NavigationDestination(icon: Icon(Icons.dashboard), label: 'Dashboard'),
+          NavigationDestination(
+              icon: Icon(Icons.dashboard), label: 'Dashboard'),
           NavigationDestination(icon: Icon(Icons.people), label: 'Students'),
           NavigationDestination(icon: Icon(Icons.payment), label: 'Fees'),
           NavigationDestination(icon: Icon(Icons.bar_chart), label: 'Reports'),
@@ -154,12 +161,24 @@ class _HomePageState extends State<HomePage> {
             ),
           ),
           flexibleSpace: FlexibleSpaceBar(
-            title: Text(
-              'Welcome, ${user.fullName}',
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 18,
-              ),
+            title: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Welcome, ${user.fullName}',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 18,
+                  ),
+                ),
+                Text(
+                  user.roleDisplayName, // Show user's role
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.normal,
+                  ),
+                ),
+              ],
             ),
             background: Container(
               decoration: BoxDecoration(
@@ -185,6 +204,39 @@ class _HomePageState extends State<HomePage> {
           padding: const EdgeInsets.all(16),
           sliver: SliverList(
             delegate: SliverChildListDelegate([
+              // User info card showing role and active status
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            user.isActive ? Icons.check_circle : Icons.cancel,
+                            color: user.isActive ? Colors.green : Colors.red,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            user.isActive ? 'Active' : 'Inactive',
+                            style: TextStyle(
+                              color: user.isActive ? Colors.green : Colors.red,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const Spacer(),
+                          Chip(
+                            label: Text(user.roleDisplayName),
+                            backgroundColor: _getRoleColor(user.role).withValues(alpha: 0.2),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
               _buildQuickStats(user),
               const SizedBox(height: 24),
               _buildQuickActions(user),

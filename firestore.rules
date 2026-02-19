@@ -1,0 +1,131 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper function to check if user is admin
+    function isAdmin() {
+      return request.auth != null && 
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // Helper function to check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Helper function to check if user owns the document
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+
+    // Users collection - Allow read/write based on role
+    match /users/{userId} {
+      // Users can read their own document
+      allow read: if isAuthenticated() && isOwner(userId);
+      
+      // Admins can read all users
+      allow read: if isAdmin();
+      
+      // Only authenticated users can create (during registration)
+      allow create: if isAuthenticated() && 
+                       isOwner(userId) &&
+                       // Prevent privilege escalation - only allow certain roles
+                       request.resource.data.role in ['student', 'parent', 'teacher', 'accountant'];
+      
+      // Users can update their own document (except role)
+      allow update: if isAuthenticated() && 
+                       isOwner(userId) &&
+                       // Prevent role escalation - role cannot be changed by user
+                       (request.resource.data.role == resource.data.role) &&
+                       // Prevent isActive changes by non-admins
+                       (request.resource.data.isActive == resource.data.isActive);
+      
+      // Only admins can update user role
+      allow update: if isAdmin();
+      
+      // Only admins can delete users
+      allow delete: if isAdmin();
+    }
+
+    // Students collection
+    match /students/{studentId} {
+      // Admins and teachers can read
+      allow read: if isAdmin() || 
+                     (isAuthenticated() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'teacher');
+      
+      // Parents can read their own children
+      allow read: if isAuthenticated() && 
+                     get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'parent' &&
+                     resource.data.parentId == request.auth.uid;
+      
+      // Only admins can write
+      allow write: if isAdmin();
+    }
+
+    // Fees collection
+    match /fees/{feeId} {
+      // Admins and accountants can read
+      allow read: if isAdmin() || 
+                     (isAuthenticated() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'accountant');
+      
+      // Students can read their own fees
+      allow read: if isAuthenticated() && 
+                     get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'student' &&
+                     resource.data.studentId == request.auth.uid;
+      
+      // Parents can read their children's fees
+      allow read: if isAuthenticated() && 
+                     get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'parent' &&
+                     resource.data.studentId == request.resource.data.parentId;
+      
+      // Only admins and accountants can write
+      allow write: if isAdmin() || 
+                      (isAuthenticated() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'accountant');
+    }
+
+    // Attendance collection
+    match /attendance/{attendanceId} {
+      // Admins and teachers can read
+      allow read: if isAdmin() || 
+                     (isAuthenticated() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'teacher');
+      
+      // Students and parents can read their own attendance
+      allow read: if isAuthenticated() && 
+                     (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['student', 'parent']) &&
+                     resource.data.studentId == request.auth.uid;
+      
+      // Only admins and teachers can write
+      allow write: if isAdmin() || 
+                      (isAuthenticated() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'teacher');
+    }
+
+    // Academics collection
+    match /academics/{academicId} {
+      // Admins and teachers can read
+      allow read: if isAdmin() || 
+                     (isAuthenticated() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'teacher');
+      
+      // Students and parents can read their own academic data
+      allow read: if isAuthenticated() && 
+                     (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['student', 'parent']) &&
+                     resource.data.studentId == request.auth.uid;
+      
+      // Only admins and teachers can write
+      allow write: if isAdmin() || 
+                      (isAuthenticated() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'teacher');
+    }
+
+    // Exams collection
+    match /exams/{examId} {
+      // All authenticated users can read
+      allow read: if isAuthenticated();
+      
+      // Only admins can write
+      allow write: if isAdmin();
+    }
+
+    // Default deny all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

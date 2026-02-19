@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../models/fees.dart';
 import '../services/firestore_service.dart';
 import '../services/mpesa_service.dart';
 import '../models/student.dart';
+import '../models/user_model.dart';
+import '../provider/user_provider.dart';
 
 class FeesPage extends StatefulWidget {
   const FeesPage({super.key});
@@ -235,34 +238,238 @@ class _FeesPageState extends State<FeesPage>
 
   @override
   Widget build(BuildContext context) {
+    // Get current user and their role
+    final userProvider = Provider.of<UserProvider>(context);
+    final currentUser = userProvider.currentUser;
+    final UserRole? userRole = currentUser?.role;
+
+    // Determine what tabs to show based on role
+    final bool canManageFees =
+        userRole == UserRole.admin || userRole == UserRole.accountant;
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Fees & Payments'),
-        backgroundColor: Colors.blue.shade700,
-        bottom: TabBar(
-          controller: _tabController,
-          tabs: const [
-            Tab(text: 'Fee Structure'),
-            Tab(text: 'Student Fees'),
-            Tab(text: 'Payments'),
-            Tab(text: 'Discounts'),
-          ],
+        title: Text(
+          userRole == UserRole.parent || userRole == UserRole.student
+              ? 'My Fees'
+              : 'Fees & Payments',
         ),
+        backgroundColor: Colors.blue.shade700,
+        bottom: canManageFees
+            ? TabBar(
+                controller: _tabController,
+                tabs: const [
+                  Tab(text: 'Fee Structure'),
+                  Tab(text: 'Student Fees'),
+                  Tab(text: 'Payments'),
+                  Tab(text: 'Discounts'),
+                ],
+              )
+            : null,
       ),
-      body: TabBarView(
-        controller: _tabController,
+      body: canManageFees
+          ? TabBarView(
+              controller: _tabController,
+              children: [
+                _buildFeeStructureTab(),
+                _buildStudentFeesTab(),
+                _buildPaymentsTab(),
+                _buildDiscountsTab(),
+              ],
+            )
+          : _buildMyFeesView(currentUser, userRole),
+      floatingActionButton: canManageFees
+          ? FloatingActionButton.extended(
+              onPressed: () => _showAddFeeStructureDialog(),
+              icon: const Icon(Icons.add),
+              label: const Text('Add Fee Structure'),
+              backgroundColor: Colors.blue.shade700,
+            )
+          : (userRole == UserRole.parent || userRole == UserRole.student)
+              ? FloatingActionButton.extended(
+                  onPressed: () => _showPayFeesDialog(currentUser),
+                  icon: const Icon(Icons.payment),
+                  label: const Text('Pay Fees'),
+                  backgroundColor: Colors.green.shade700,
+                )
+              : null,
+    );
+  }
+
+  // Build view for parents/students to see their own fees
+  Widget _buildMyFeesView(AppUser? currentUser, UserRole? userRole) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildFeeStructureTab(),
-          _buildStudentFeesTab(),
-          _buildPaymentsTab(),
-          _buildDiscountsTab(),
+          // User info card
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Welcome, ${currentUser?.fullName ?? "User"}',
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Chip(
+                    label: Text(currentUser?.roleDisplayName ?? "Unknown"),
+                    backgroundColor: Colors.blue.withValues(alpha: 0.2),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          // Fee status card
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Fee Status',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  _buildFeeStatusRow('Tuition Fee', 15000, 10000),
+                  _buildFeeStatusRow('Activity Fee', 2000, 2000),
+                  _buildFeeStatusRow('Exam Fee', 1000, 0),
+                  _buildFeeStatusRow('Transport Fee', 5000, 5000),
+                  const Divider(),
+                  _buildFeeStatusRow('Total', 23500, 17000, isTotal: true),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          // Payment history
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Payment History',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  ListTile(
+                    leading:
+                        const Icon(Icons.check_circle, color: Colors.green),
+                    title: const Text('Payment Received'),
+                    subtitle: Text(
+                        'KSh 10,000 - ${DateTime.now().subtract(const Duration(days: 5)).toString().split(" ")[0]}'),
+                  ),
+                  ListTile(
+                    leading:
+                        const Icon(Icons.check_circle, color: Colors.green),
+                    title: const Text('Payment Received'),
+                    subtitle: Text(
+                        'KSh 7,000 - ${DateTime.now().subtract(const Duration(days: 30)).toString().split(" ")[0]}'),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showAddFeeStructureDialog(),
-        icon: const Icon(Icons.add),
-        label: const Text('Add Fee Structure'),
-        backgroundColor: Colors.blue.shade700,
+    );
+  }
+
+  Widget _buildFeeStatusRow(String name, double total, double paid,
+      {bool isTotal = false}) {
+    final double balance = total - paid;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            name,
+            style: TextStyle(
+              fontSize: isTotal ? 18 : 16,
+              fontWeight: isTotal ? FontWeight.bold : FontWeight.normal,
+            ),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                'KSh ${total.toStringAsFixed(0)}',
+                style: TextStyle(
+                  fontSize: isTotal ? 18 : 16,
+                  fontWeight: isTotal ? FontWeight.bold : FontWeight.normal,
+                ),
+              ),
+              if (!isTotal)
+                Text(
+                  'Paid: KSh ${paid.toStringAsFixed(0)}',
+                  style: const TextStyle(fontSize: 12, color: Colors.green),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showPayFeesDialog(AppUser? currentUser) {
+    // Show payment dialog for parents/students
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Pay School Fees'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('Enter amount to pay:'),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _amountController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: 'Amount (KSh)',
+                prefixText: 'KSh ',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              // TODO: Implement M-Pesa payment
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text(
+                      'Payment initiated! You will receive an M-Pesa prompt.'),
+                  backgroundColor: Colors.green,
+                ),
+              );
+            },
+            child: const Text('Pay via M-Pesa'),
+          ),
+        ],
       ),
     );
   }

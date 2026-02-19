@@ -3,26 +3,51 @@ require("dotenv").config();
 const express = require("express");
 const axios = require("axios");
 const cors = require("cors");
-const admin = require("firebase-admin");
+const path = require("path");
+const emailService = require("./email-service");
 
 const app = express();
 
-// You'll need to download this from your Firebase project settings
-// and ensure the path is correct.
-// IMPORTANT: Do not commit this file to your public repository!
-const serviceAccount = require("./serviceAccountKey.json");
+let admin;
+let db;
 
-admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount),
-});
+// Initialize Firebase Admin if service account key exists
+try {
+  const serviceAccountPath = path.join(__dirname, "serviceAccountKey.json");
+  admin = require("firebase-admin");
+  const serviceAccount = require(serviceAccountPath);
 
-const db = admin.firestore();
+  admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount),
+  });
+
+  db = admin.firestore();
+  console.log("✓ Firebase initialized");
+} catch (error) {
+  console.warn(
+    "⚠️  Firebase not initialized (serviceAccountKey.json not found). Email service will work, but M-Pesa features may be limited."
+  );
+  admin = null;
+  db = null;
+}
 
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// ---------- Helpers ----------
+// ---------- Helper Functions ----------
+
+function requireFirebase(res) {
+  if (!db) {
+    res.status(503).json({
+      success: false,
+      message: "Firebase is not configured. Please set up serviceAccountKey.json",
+    });
+    return false;
+  }
+  return true;
+}
+
 function mpesaTimestamp() {
   const d = new Date();
   const pad = (n) => n.toString().padStart(2, "0");
@@ -114,6 +139,8 @@ app.post("/auth/login", (req, res) => {
 // Create Student
 // TODO: Add admin-only middleware
 app.post("/api/students", async (req, res) => { // This should be protected
+  if (!requireFirebase(res)) return;
+  
   try {
     const { name, studentId, email, course, feeBalance } = req.body;
     if (!name || !studentId || !course || feeBalance === undefined) {
@@ -131,6 +158,8 @@ app.post("/api/students", async (req, res) => { // This should be protected
 // Get All Students
 // TODO: Add admin-only middleware
 app.get("/api/students", async (req, res) => { // This should be protected
+  if (!requireFirebase(res)) return;
+  
   try {
     const snapshot = await db.collection("students").get();
     if (snapshot.empty) {
@@ -147,6 +176,8 @@ app.get("/api/students", async (req, res) => { // This should be protected
 // Get Student by ID
 // TODO: Add middleware to allow admin OR the specific student to access
 app.get("/api/students/:id", async (req, res) => {
+  if (!requireFirebase(res)) return;
+  
   try {
     const studentId = req.params.id;
     const doc = await db.collection("students").doc(studentId).get();
@@ -163,6 +194,8 @@ app.get("/api/students/:id", async (req, res) => {
 // Update Student
 // TODO: Add admin-only middleware
 app.put("/api/students/:id", async (req, res) => { // This should be protected
+  if (!requireFirebase(res)) return;
+  
   try {
     const studentId = req.params.id;
     const data = req.body;
@@ -177,6 +210,8 @@ app.put("/api/students/:id", async (req, res) => { // This should be protected
 // Delete Student
 // TODO: Add admin-only middleware
 app.delete("/api/students/:id", async (req, res) => { // This should be protected
+  if (!requireFirebase(res)) return;
+  
   try {
     const studentId = req.params.id;
     await db.collection("students").doc(studentId).delete();
@@ -189,6 +224,8 @@ app.delete("/api/students/:id", async (req, res) => { // This should be protecte
 
 // STK Push - Can be initiated by admin or student
 app.post("/mpesa/stkpush", async (req, res) => {
+  if (!requireFirebase(res)) return;
+  
   try {
     let { phone, amount, accountReference, transactionDesc } = req.body;
 
@@ -314,6 +351,8 @@ app.post("/mpesa/query", async (req, res) => {
 
 // Callback
 app.post("/mpesa/callback", async (req, res) => {
+  if (!requireFirebase(res)) return;
+  
   console.log("MPESA CALLBACK RECEIVED:");
   console.log(JSON.stringify(req.body, null, 2));
 
@@ -390,6 +429,8 @@ app.get("/mpesa/token", async (req, res) => {
 
 // Get transaction result (for Flutter polling)
 app.get("/mpesa/transaction/:checkoutRequestId", async (req, res) => {
+  if (!requireFirebase(res)) return;
+  
   try {
     const { checkoutRequestId } = req.params;
     const doc = await db.collection("mpesa_transactions").doc(checkoutRequestId).get();
@@ -402,6 +443,85 @@ app.get("/mpesa/transaction/:checkoutRequestId", async (req, res) => {
   } catch (error) {
     console.error("Error polling transaction:", error);
     res.status(500).json({ success: false, message: "Error polling transaction" });
+  }
+});
+
+// ---------- Email Routes ----------
+
+/**
+ * Send verification email
+ * Called after user registration
+ */
+app.post("/api/email/send-verification", async (req, res) => {
+  try {
+    const { email, fullName } = req.body;
+
+    if (!email || !fullName) {
+      return res
+        .status(400)
+        .json({ message: "Missing required fields: email, fullName" });
+    }
+
+    const result = await emailService.sendVerificationEmail(email, fullName);
+    res.status(200).json({ success: true, ...result });
+  } catch (error) {
+    console.error("Error sending verification email:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to send verification email",
+      error: error.message,
+    });
+  }
+});
+
+/**
+ * Send password reset email
+ */
+app.post("/api/email/send-password-reset", async (req, res) => {
+  try {
+    const { email, fullName } = req.body;
+
+    if (!email || !fullName) {
+      return res
+        .status(400)
+        .json({ message: "Missing required fields: email, fullName" });
+    }
+
+    const result = await emailService.sendPasswordResetEmail(email, fullName);
+    res.status(200).json({ success: true, ...result });
+  } catch (error) {
+    console.error("Error sending password reset email:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to send password reset email",
+      error: error.message,
+    });
+  }
+});
+
+/**
+ * Send welcome email
+ * Called after email verification
+ */
+app.post("/api/email/send-welcome", async (req, res) => {
+  try {
+    const { email, fullName, role } = req.body;
+
+    if (!email || !fullName || !role) {
+      return res
+        .status(400)
+        .json({ message: "Missing required fields: email, fullName, role" });
+    }
+
+    const result = await emailService.sendWelcomeEmail(email, fullName, role);
+    res.status(200).json({ success: true, ...result });
+  } catch (error) {
+    console.error("Error sending welcome email:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to send welcome email",
+      error: error.message,
+    });
   }
 });
 

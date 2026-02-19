@@ -95,6 +95,13 @@ class _LoginPageState extends State<LoginPage> {
           role: _selectedRole,
           phone: _phoneController.text.trim(),
         );
+        if (!mounted) return;
+        _showSuccess(
+          'Registration successful! A verification email has been sent to ${_emailController.text.trim()}. Please check your inbox and verify your email.',
+        );
+        // Firebase automatically logs in the user after registration
+        // The AuthWrapper will handle navigation to home page
+        // No need to manually switch to login mode
       }
     } catch (e) {
       if (!mounted) return;
@@ -141,8 +148,10 @@ class _LoginPageState extends State<LoginPage> {
       return 'Password is too weak. Use at least 6 characters.';
     } else if (error.contains('too-many-requests')) {
       return 'Too many attempts. Please try again later.';
+    } else if (error.contains('400') || error.contains('Bad Request')) {
+      return 'Registration failed. Please check Firebase Console: Authentication → Sign-in method → Enable Email/Password';
     }
-    return 'An error occurred. Please try again.';
+    return 'An error occurred. Please try again. Error: $error';
   }
 
   void _showError(String message) {

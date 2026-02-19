@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/user_model.dart';
+import 'role_validator.dart';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -31,25 +32,39 @@ class AuthService {
     required UserRole role,
     String? phone,
   }) async {
-    // Create Firebase Auth user
-    final userCredential = await _auth.createUserWithEmailAndPassword(
-      email: email,
-      password: password,
-    );
+    // Validate role - prevent admin role during registration
+    final validatedRole = RoleValidator.validateRegistrationRole(role);
 
-    // Create user document in Firestore
-    final userDoc = usersCollection.doc(userCredential.user!.uid);
-    await userDoc.set({
-      'email': email,
-      'fullName': fullName,
-      'role': role.toString().split('.').last,
-      'phone': phone ?? '',
-      'isActive': true,
-      'createdAt': DateTime.now().toIso8601String(),
-      'lastLogin': DateTime.now().toIso8601String(),
-    });
+    try {
+      // Create Firebase Auth user
+      final userCredential = await _auth.createUserWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
 
-    return userCredential;
+      // Create user document in Firestore with role and isActive
+      final userDoc = usersCollection.doc(userCredential.user!.uid);
+      await userDoc.set({
+        'email': email,
+        'fullName': fullName,
+        'role': validatedRole.toString().split('.').last,
+        'phone': phone ?? '',
+        'isActive': true,
+        'emailVerified': false,
+        'createdAt': DateTime.now().toIso8601String(),
+        'lastLogin': DateTime.now().toIso8601String(),
+      });
+
+      // Skip email verification for now - can be enabled later
+      // The user will be logged in without email verification
+      // _sendVerificationEmailAsync(userCredential.user!, fullName);
+
+      return userCredential;
+    } catch (e) {
+      // Log the error for debugging
+      print('Registration error: $e');
+      rethrow; // Re-throw to let the UI handle the error
+    }
   }
 
   // Logout

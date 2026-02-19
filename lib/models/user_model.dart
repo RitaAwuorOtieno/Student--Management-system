@@ -101,9 +101,11 @@ class AppUser {
         case 'parent':
           return UserRole.parent;
         default:
+          // Default to student role to prevent privilege escalation
           return UserRole.student;
       }
     }
+    // Default to student role if role is invalid type
     return UserRole.student;
   }
 
