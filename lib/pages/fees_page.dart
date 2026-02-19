@@ -18,6 +18,7 @@ class _FeesPageState extends State<FeesPage>
     with SingleTickerProviderStateMixin {
   final FirestoreService _firestoreService = FirestoreService();
   final TextEditingController _amountController = TextEditingController();
+  final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _searchController = TextEditingController();
 
   late TabController _tabController;
@@ -28,196 +29,17 @@ class _FeesPageState extends State<FeesPage>
   final List<String> _academicYears = ['2023', '2024', '2025'];
   final List<String> _terms = ['Term 1', 'Term 2', 'Term 3'];
 
-  // Sample students for demo
-  final List<Student> _students = [
-    Student(
-        id: 's1',
-        admissionNumber: 'ADM001',
-        fullName: 'John Doe',
-        gender: 'Male',
-        classGrade: 'Grade 1',
-        parentName: 'Mr. Doe',
-        parentPhone: '0712345678',
-        relationship: 'Father',
-        phone: '',
-        address: '',
-        city: ''),
-    Student(
-        id: 's2',
-        admissionNumber: 'ADM002',
-        fullName: 'Jane Smith',
-        gender: 'Female',
-        classGrade: 'Grade 1',
-        parentName: 'Mrs. Smith',
-        parentPhone: '0712345679',
-        relationship: 'Mother',
-        phone: '',
-        address: '',
-        city: ''),
-    Student(
-        id: 's3',
-        admissionNumber: 'ADM003',
-        fullName: 'Bob Johnson',
-        gender: 'Male',
-        classGrade: 'Grade 1',
-        parentName: 'Mr. Johnson',
-        parentPhone: '0712345680',
-        relationship: 'Father',
-        phone: '',
-        address: '',
-        city: ''),
-  ];
+  // Students list - loaded from Firestore
+  final List<Student> _students = [];
 
-  // Sample fee structures
-  final List<FeeStructure> _feeStructures = [
-    FeeStructure(
-        id: 'fs1',
-        className: 'Grade 1',
-        term: 'Term 1',
-        academicYear: '2024',
-        tuitionFee: 15000,
-        activityFee: 2000,
-        examFee: 1000,
-        transportFee: 5000,
-        otherFee: 500,
-        totalFee: 23500),
-    FeeStructure(
-        id: 'fs2',
-        className: 'Grade 2',
-        term: 'Term 1',
-        academicYear: '2024',
-        tuitionFee: 16000,
-        activityFee: 2000,
-        examFee: 1000,
-        transportFee: 5000,
-        otherFee: 500,
-        totalFee: 24500),
-    FeeStructure(
-        id: 'fs3',
-        className: 'Grade 3',
-        term: 'Term 1',
-        academicYear: '2024',
-        tuitionFee: 17000,
-        activityFee: 2500,
-        examFee: 1500,
-        transportFee: 5000,
-        otherFee: 500,
-        totalFee: 26500),
-    FeeStructure(
-        id: 'fs4',
-        className: 'Form 1',
-        term: 'Term 1',
-        academicYear: '2024',
-        tuitionFee: 25000,
-        activityFee: 3000,
-        examFee: 2000,
-        transportFee: 5000,
-        otherFee: 1000,
-        totalFee: 36000),
-    FeeStructure(
-        id: 'fs5',
-        className: 'Form 2',
-        term: 'Term 1',
-        academicYear: '2024',
-        tuitionFee: 26000,
-        activityFee: 3000,
-        examFee: 2000,
-        transportFee: 5000,
-        otherFee: 1000,
-        totalFee: 37000),
-    FeeStructure(
-        id: 'fs6',
-        className: 'Form 3',
-        term: 'Term 1',
-        academicYear: '2024',
-        tuitionFee: 27000,
-        activityFee: 3500,
-        examFee: 2500,
-        transportFee: 5000,
-        otherFee: 1000,
-        totalFee: 39000),
-    FeeStructure(
-        id: 'fs7',
-        className: 'Form 4',
-        term: 'Term 1',
-        academicYear: '2024',
-        tuitionFee: 28000,
-        activityFee: 3500,
-        examFee: 3000,
-        transportFee: 5000,
-        otherFee: 1000,
-        totalFee: 40500),
-  ];
+  // Fee structures list - loaded from Firestore
+  final List<FeeStructure> _feeStructures = [];
 
-  // Sample payments
-  final List<Payment> _payments = [
-    Payment(
-        id: 'p1',
-        studentId: 's1',
-        studentName: 'John Doe',
-        amount: 23500,
-        paymentDate: DateTime(2024, 1, 15),
-        paymentMethod: 'Cash',
-        receiptNumber: 'RCP-001',
-        academicYear: '2024',
-        term: 'Term 1'),
-    Payment(
-        id: 'p2',
-        studentId: 's2',
-        studentName: 'Jane Smith',
-        amount: 12000,
-        paymentDate: DateTime(2024, 1, 20),
-        paymentMethod: 'M-Pesa',
-        receiptNumber: 'RCP-002',
-        academicYear: '2024',
-        term: 'Term 1'),
-    Payment(
-        id: 'p3',
-        studentId: 's3',
-        studentName: 'Bob Johnson',
-        amount: 23500,
-        paymentDate: DateTime(2024, 1, 10),
-        paymentMethod: 'Bank Transfer',
-        receiptNumber: 'RCP-003',
-        academicYear: '2024',
-        term: 'Term 1'),
-  ];
+  // Payments list - loaded from Firestore
+  final List<Payment> _payments = [];
 
-  // Sample discounts
-  final List<Discount> _discounts = [
-    Discount(
-        id: 'd1',
-        name: 'Early Payment',
-        description: '5% discount for payment within first week of term',
-        percentage: 5,
-        isEarlyPayment: true,
-        validFrom: '2024-01-01',
-        validUntil: '2024-01-31'),
-    Discount(
-        id: 'd2',
-        name: 'Sibling Discount',
-        description: '10% discount for second and subsequent siblings',
-        percentage: 10,
-        isEarlyPayment: false,
-        validFrom: '2024-01-01',
-        validUntil: '2024-12-31'),
-    Discount(
-        id: 'd3',
-        name: 'Staff Child',
-        description: '25% discount for staff children',
-        percentage: 25,
-        isEarlyPayment: false,
-        validFrom: '2024-01-01',
-        validUntil: '2024-12-31'),
-    Discount(
-        id: 'd4',
-        name: 'Full Payment',
-        description: '5% discount for full term payment',
-        percentage: 5,
-        isEarlyPayment: false,
-        validFrom: '2024-01-01',
-        validUntil: '2024-01-31'),
-  ];
+  // Discounts list - loaded from Firestore
+  final List<Discount> _discounts = [];
 
   @override
   void initState() {
@@ -231,6 +53,7 @@ class _FeesPageState extends State<FeesPage>
   @override
   void dispose() {
     _amountController.dispose();
+    _phoneController.dispose();
     _searchController.dispose();
     _tabController.dispose();
     super.dispose();
@@ -429,47 +252,134 @@ class _FeesPageState extends State<FeesPage>
   }
 
   void _showPayFeesDialog(AppUser? currentUser) {
-    // Show payment dialog for parents/students
+    final phoneController = TextEditingController();
+    final amountController = TextEditingController();
+    bool isLoading = false;
+
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Pay School Fees'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text('Enter amount to pay:'),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _amountController,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                labelText: 'Amount (KSh)',
-                prefixText: 'KSh ',
-                border: OutlineInputBorder(),
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Pay School Fees'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: phoneController,
+                keyboardType: TextInputType.phone,
+                decoration: const InputDecoration(
+                  labelText: 'Safaricom Number (07XXXXXXXX)',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.phone),
+                ),
               ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: amountController,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: 'Amount (KES)',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.attach_money),
+                ),
+              ),
+              if (isLoading) ...[
+                const SizedBox(height: 16),
+                const CircularProgressIndicator(),
+                const Text('Sending STK push...'),
+              ],
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: isLoading ? null : () => Navigator.pop(dialogContext),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: isLoading
+                  ? null
+                  : () async {
+                      final phone = phoneController.text.trim();
+                      final amount = amountController.text.trim();
+
+                      // Validate phone number
+                      String formattedPhone = phone;
+                      if (formattedPhone.startsWith('0')) {
+                        formattedPhone = '254${formattedPhone.substring(1)}';
+                      }
+
+                      if (!formattedPhone.startsWith('2547') ||
+                          formattedPhone.length != 12) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Enter valid Safaricom number'),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
+                        return;
+                      }
+
+                      // Validate amount
+                      if (int.tryParse(amount) == null ||
+                          int.parse(amount) <= 0) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Enter valid amount'),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
+                        return;
+                      }
+
+                      // Initiate STK push
+                      setDialogState(() => isLoading = true);
+
+                      try {
+                        final result = await MpesaService.initiateSTKPush(
+                          phone: formattedPhone,
+                          amount: double.parse(amount),
+                          accountReference:
+                              currentUser?.fullName ?? 'SchoolFees',
+                          transactionDesc: 'School Fees Payment',
+                        );
+
+                        if (result['success'] == true) {
+                          Navigator.pop(dialogContext);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(result['message'] ??
+                                  'Check phone for M-Pesa PIN'),
+                              backgroundColor: Colors.green,
+                            ),
+                          );
+                        } else {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                  result['message'] ?? 'Payment failed'),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                        }
+                      } catch (e) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Connection error: $e'),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
+                      } finally {
+                        setDialogState(() => isLoading = false);
+                      }
+                    },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Pay Now'),
             ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              // TODO: Implement M-Pesa payment
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text(
-                      'Payment initiated! You will receive an M-Pesa prompt.'),
-                  backgroundColor: Colors.green,
-                ),
-              );
-            },
-            child: const Text('Pay via M-Pesa'),
-          ),
-        ],
       ),
     );
   }

@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+
 import '../provider/user_provider.dart';
-import '../models/user_model.dart';
 import 'student_page.dart';
 import 'fees_page.dart';
 import 'attendance_page.dart';
@@ -11,7 +11,9 @@ import 'exams_page.dart';
 import 'reports_page.dart';
 import 'academic_page.dart';
 
-// --- TEACHER DASHBOARD ---
+/// =========================================================
+/// ================= TEACHER DASHBOARD =====================
+/// =========================================================
 class TeacherDashboard extends StatefulWidget {
   const TeacherDashboard({super.key});
 
@@ -22,11 +24,11 @@ class TeacherDashboard extends StatefulWidget {
 class _TeacherDashboardState extends State<TeacherDashboard> {
   int _selectedIndex = 0;
 
-  final List<Widget> _pages = [
-    const TeacherHomeTab(),
-    const StudentPage(),
-    const AttendancePage(),
-    const ExamsPage(),
+  final List<Widget> _pages = const [
+    TeacherHomeTab(),
+    StudentPage(),
+    AttendancePage(),
+    ExamsPage(),
   ];
 
   @override
@@ -35,7 +37,9 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
       body: _pages[_selectedIndex],
       bottomNavigationBar: NavigationBar(
         selectedIndex: _selectedIndex,
-        onDestinationSelected: (index) => setState(() => _selectedIndex = index),
+        onDestinationSelected: (index) {
+          setState(() => _selectedIndex = index);
+        },
         destinations: const [
           NavigationDestination(icon: Icon(Icons.dashboard), label: 'Dashboard'),
           NavigationDestination(icon: Icon(Icons.people), label: 'Students'),
@@ -53,6 +57,7 @@ class TeacherHomeTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final user = Provider.of<UserProvider>(context).currentUser;
+
     return Scaffold(
       appBar: AppBar(
         title: Text('Welcome, ${user?.fullName ?? 'Teacher'}'),
@@ -62,24 +67,17 @@ class TeacherHomeTab extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Search Bar
             TextField(
               decoration: InputDecoration(
                 hintText: 'Search student by name...',
                 prefixIcon: const Icon(Icons.search),
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                 filled: true,
-                fillColor: Colors.white,
               ),
-              onSubmitted: (value) {
-                // Navigate to student page with search query (implementation depends on StudentPage)
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Searching for $value...')),
-                );
-              },
             ),
             const SizedBox(height: 24),
-            const Text('Quick Actions', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const Text('Quick Actions',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 16),
             GridView.count(
               shrinkWrap: true,
@@ -89,10 +87,14 @@ class TeacherHomeTab extends StatelessWidget {
               childAspectRatio: 1.5,
               physics: const NeverScrollableScrollPhysics(),
               children: [
-                _buildActionCard(context, 'Take Attendance', Icons.check_circle_outline, Colors.orange, const AttendancePage()),
-                _buildActionCard(context, 'Give Assignment', Icons.assignment_outlined, Colors.purple, const ExamsPage()),
-                _buildActionCard(context, 'View Students', Icons.people_outline, Colors.blue, const StudentPage()),
-                _buildActionCard(context, 'Grading', Icons.grade_outlined, Colors.teal, const AcademicPage()),
+                _buildActionCard(context, 'Take Attendance',
+                    Icons.check_circle_outline, Colors.orange, const AttendancePage()),
+                _buildActionCard(context, 'Give Assignment',
+                    Icons.assignment_outlined, Colors.purple, const ExamsPage()),
+                _buildActionCard(context, 'View Students',
+                    Icons.people_outline, Colors.blue, const StudentPage()),
+                _buildActionCard(context, 'Grading',
+                    Icons.grade_outlined, Colors.teal, const AcademicPage()),
               ],
             ),
           ],
@@ -101,9 +103,11 @@ class TeacherHomeTab extends StatelessWidget {
     );
   }
 
-  Widget _buildActionCard(BuildContext context, String title, IconData icon, Color color, Widget page) {
+  Widget _buildActionCard(BuildContext context, String title,
+      IconData icon, Color color, Widget page) {
     return InkWell(
-      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => page)),
+      onTap: () =>
+          Navigator.push(context, MaterialPageRoute(builder: (_) => page)),
       child: Container(
         decoration: BoxDecoration(
           color: color.withOpacity(0.1),
@@ -115,7 +119,8 @@ class TeacherHomeTab extends StatelessWidget {
           children: [
             Icon(icon, size: 32, color: color),
             const SizedBox(height: 8),
-            Text(title, style: TextStyle(color: color, fontWeight: FontWeight.bold)),
+            Text(title,
+                style: TextStyle(color: color, fontWeight: FontWeight.bold)),
           ],
         ),
       ),
@@ -123,7 +128,9 @@ class TeacherHomeTab extends StatelessWidget {
   }
 }
 
-// --- PARENT DASHBOARD ---
+/// =========================================================
+/// ================= PARENT DASHBOARD ======================
+/// =========================================================
 class ParentDashboard extends StatefulWidget {
   const ParentDashboard({super.key});
 
@@ -134,11 +141,11 @@ class ParentDashboard extends StatefulWidget {
 class _ParentDashboardState extends State<ParentDashboard> {
   int _selectedIndex = 0;
 
-  final List<Widget> _pages = [
-    const ParentHomeTab(),
-    const FeesPage(),
-    const AcademicPage(),
-    const AttendancePage(),
+  final List<Widget> _pages = const [
+    ParentHomeTab(),
+    FeesPage(),
+    AcademicPage(),
+    AttendancePage(),
   ];
 
   @override
@@ -147,7 +154,9 @@ class _ParentDashboardState extends State<ParentDashboard> {
       body: _pages[_selectedIndex],
       bottomNavigationBar: NavigationBar(
         selectedIndex: _selectedIndex,
-        onDestinationSelected: (index) => setState(() => _selectedIndex = index),
+        onDestinationSelected: (index) {
+          setState(() => _selectedIndex = index);
+        },
         destinations: const [
           NavigationDestination(icon: Icon(Icons.home), label: 'Home'),
           NavigationDestination(icon: Icon(Icons.payment), label: 'Fees'),
@@ -162,14 +171,29 @@ class _ParentDashboardState extends State<ParentDashboard> {
 class ParentHomeTab extends StatelessWidget {
   const ParentHomeTab({super.key});
 
-  Future<void> _initiateStkPush(BuildContext context, String phone, String amount) async {
-    // Basic validation
-    if (phone.isEmpty || amount.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please enter phone and amount')));
+  /// ================= STK PUSH =================
+  Future<void> _initiateStkPush(
+      BuildContext context, String phone, String amount) async {
+    String formattedPhone = phone.trim();
+
+    if (formattedPhone.startsWith('0')) {
+      formattedPhone = '254${formattedPhone.substring(1)}';
+    }
+
+    if (!formattedPhone.startsWith('2547') || formattedPhone.length != 12) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Enter valid Safaricom number')),
+      );
       return;
     }
 
-    // Show loading
+    if (int.tryParse(amount) == null || int.parse(amount) <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Enter valid amount')),
+      );
+      return;
+    }
+
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -177,31 +201,31 @@ class ParentHomeTab extends StatelessWidget {
     );
 
     try {
-      // Replace with your actual backend URL. Use 10.0.2.2 for Android emulator to access localhost.
-      const String baseUrl = 'http://10.0.2.2:3000'; 
-      
+      const String baseUrl = 'http://10.0.2.2:3000';
+
       final response = await http.post(
         Uri.parse('$baseUrl/mpesa/stkpush'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
-          'phone': phone,
-          'amount': int.tryParse(amount) ?? 0,
+          'phone': formattedPhone,
+          'amount': int.parse(amount),
           'accountReference': 'SchoolFees',
           'transactionDesc': 'Fee Payment'
         }),
       );
 
       if (context.mounted) {
-        Navigator.pop(context); // Close loading
-        
+        Navigator.pop(context);
+
+        final data = jsonDecode(response.body);
+
         if (response.statusCode == 200) {
-          final data = jsonDecode(response.body);
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(data['message'] ?? 'STK Push initiated. Check your phone.')),
+            SnackBar(content: Text(data['message'] ?? 'Check phone for PIN')),
           );
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Failed: ${response.body}')),
+            SnackBar(content: Text(data['error'] ?? 'Payment failed')),
           );
         }
       }
@@ -209,7 +233,7 @@ class ParentHomeTab extends StatelessWidget {
       if (context.mounted) {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
+          SnackBar(content: Text('Connection error')),
         );
       }
     }
@@ -217,23 +241,21 @@ class ParentHomeTab extends StatelessWidget {
 
   void _showPaymentDialog(BuildContext context) {
     final phoneController = TextEditingController();
-    final amountController = TextEditingController();
+    final amountController =
+        TextEditingController(text: "23000");
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (_) => AlertDialog(
         title: const Text('Pay School Fees'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('Enter M-Pesa details below to initiate payment.'),
-            const SizedBox(height: 16),
             TextField(
               controller: phoneController,
               keyboardType: TextInputType.phone,
               decoration: const InputDecoration(
-                labelText: 'Phone Number',
-                hintText: '2547...',
+                labelText: 'Safaricom Number (07XXXXXXXX)',
                 border: OutlineInputBorder(),
               ),
             ),
@@ -249,13 +271,20 @@ class ParentHomeTab extends StatelessWidget {
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel')),
           ElevatedButton(
             onPressed: () {
+              final phone = phoneController.text;
+              final amount = amountController.text;
               Navigator.pop(context);
-              _initiateStkPush(context, phoneController.text, amountController.text);
+              _initiateStkPush(context, phone, amount);
             },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.green,
+              foregroundColor: Colors.white,
+            ),
             child: const Text('Pay Now'),
           ),
         ],
@@ -266,93 +295,52 @@ class ParentHomeTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final user = Provider.of<UserProvider>(context).currentUser;
+
     return Scaffold(
-      appBar: AppBar(title: Text('Parent Portal - ${user?.fullName}')),
+      appBar: AppBar(
+        title: Text('Parent Portal - ${user?.fullName ?? ''}'),
+      ),
       body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Fee Structure Card
-            Card(
-              elevation: 4,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text('Fee Structure (Term 1)', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                    const Divider(),
-                    const Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Text('Tuition'), Text('KES 15,000')]),
-                    const SizedBox(height: 8),
-                    const Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Text('Transport'), Text('KES 5,000')]),
-                    const SizedBox(height: 8),
-                    const Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Text('Lunch'), Text('KES 3,000')]),
-                    const Divider(),
-                    const Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                      Text('Total Due', style: TextStyle(fontWeight: FontWeight.bold)), 
-                      Text('KES 23,000', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.red))
-                    ]),
-                    const SizedBox(height: 16),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton.icon(
-                        onPressed: () => _showPaymentDialog(context),
-                        icon: const Icon(Icons.payment),
-                        label: const Text('Pay Fees via M-Pesa'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.green,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                        ),
-                      ),
+        padding: const EdgeInsets.all(16),
+        child: Card(
+          elevation: 4,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              children: [
+                const Text('Total Fee Due',
+                    style:
+                        TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 10),
+                const Text('KES 23,000',
+                    style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.red)),
+                const SizedBox(height: 20),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: () => _showPaymentDialog(context),
+                    icon: const Icon(Icons.payment),
+                    label: const Text('Pay via M-Pesa'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green,
+                      foregroundColor: Colors.white,
                     ),
-                  ],
-                ),
-              ),
+                  ),
+                )
+              ],
             ),
-            const SizedBox(height: 24),
-            const Text('Student Overview', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            // Add more parent specific widgets here
-          ],
+          ),
         ),
       ),
     );
   }
 }
 
-// --- ACCOUNTANT DASHBOARD ---
-class AccountantDashboard extends StatefulWidget {
-  const AccountantDashboard({super.key});
-
-  @override
-  State<AccountantDashboard> createState() => _AccountantDashboardState();
-}
-
-class _AccountantDashboardState extends State<AccountantDashboard> {
-  int _selectedIndex = 0;
-
-  final List<Widget> _pages = [
-    const FeesPage(), // Main page for accountant is Fees
-    const ReportsPage(),
-  ];
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: _pages[_selectedIndex],
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _selectedIndex,
-        onDestinationSelected: (index) => setState(() => _selectedIndex = index),
-        destinations: const [
-          NavigationDestination(icon: Icon(Icons.attach_money), label: 'Fees & Payments'),
-          NavigationDestination(icon: Icon(Icons.bar_chart), label: 'Reports'),
-        ],
-      ),
-    );
-  }
-}
 
 // --- STUDENT DASHBOARD ---
 class StudentDashboard extends StatefulWidget {

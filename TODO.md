@@ -1,18 +1,16 @@
-# Fix Errors in fees_page.dart
+# TODO: Update Fees Page
 
-## Errors Identified:
-1. Using `initialValue` instead of `value` in DropdownButtonFormField (6 occurrences)
-2. Missing `nameController` declaration in `_showAddDiscountDialog()` 
-3. Using undefined `selectedClass` variable in `_showAddDiscountDialog()`
-4. Student constructor missing required fields: `email`, `county`, `notes`
+## Task: Make payment dialogue in fees page to match the one in the parent dashboard and remove mock data
 
-## Fix Plan:
-- [ ] Fix `initialValue` → `value` in `_buildFeeStructureTab()` (2 places)
-- [ ] Fix `initialValue` → `value` in `_buildPaymentsTab()` (2 places)
-- [ ] Fix `initialValue` → `value` in `_showAddFeeStructureDialog()` (1 place)
-- [ ] Fix `initialValue` → `value` in `_showAddDiscountDialog()` (1 place)
-- [ ] Add `nameController` declaration in `_showAddDiscountDialog()`
-- [ ] Remove incorrect DropdownButtonFormField from `_showAddDiscountDialog()`
-- [ ] Fix Student constructor to include required fields
-
-## Status: Pending user confirmation
+### Steps:
+- [ ] 1. Update `_showPayFeesDialog` method to match parent dashboard pattern
+  - [ ] Add phone number input field
+  - [ ] Use MpesaService.initiateSTKPush() for payment
+  - [ ] Show loading state during payment
+  - [ ] Show appropriate success/error messages
+- [ ] 2. Remove mock data from fees_page.dart
+  - [ ] Replace _students with empty list
+  - [ ] Replace _feeStructures with empty list
+  - [ ] Replace _payments with empty list
+  - [ ] Replace _discounts with empty list
+  - [ ] Add empty state UI messages where needed
